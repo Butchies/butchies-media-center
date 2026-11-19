@@ -2,6 +2,9 @@
 
 Neueste zuerst.
 
+## 19.11.2026 – Butchies Media Center 3.11.1: Butchies-Designs entfernt
+- Die 6 Butchies-Designs (Aurora, Kinosaal Rot, Mitternachtsblau, OLED Schwarz, Smaragd, Sonnenuntergang) wurden wieder entfernt. Unter Einstellungen → Anzeige → Design stehen nur noch die Original-Designs von Jellyfin. Wer eines der Butchies-Designs eingestellt hatte, bekommt automatisch wieder das Standard-Design.
+
 ## 19.11.2026 – Butchies Media Center 3.11.0: Player komplett
 - **Schlaftimer** im Player (Mond-Symbol neben dem Tempo): 15/30/45/60/90/120 Minuten oder „Ende dieses Titels“ – danach hält die Wiedergabe an.
 - **Warteschlange** als Reiter unter dem Player, wenn mehrere Titel nacheinander laufen (Wiedergabeliste, Sammlung, „Alle abspielen“).

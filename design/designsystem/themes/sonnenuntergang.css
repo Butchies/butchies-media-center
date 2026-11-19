@@ -1,8 +1,0 @@
-/* Sonnenuntergang: eigenständiges Butchies-Design */
-[data-bmc-theme="sonnenuntergang"] {
-  --bmc-background:#1b1025;--bmc-panel:#382038;--bmc-accent:#f28d57;
-  --bmc-text:#fff2eb;--bmc-muted:#d5b3c5;--bmc-border:color-mix(in srgb,#f28d57 18%,transparent);
-  --bmc-hover:color-mix(in srgb,#f28d57 17%,#382038);
-  --bmc-shadow:0 14px 36px rgba(0,0,0,.35);
-  --bmc-radius:14px;--bmc-gap:18px;
-}

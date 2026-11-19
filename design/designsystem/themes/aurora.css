@@ -1,8 +1,0 @@
-/* Aurora: eigenständiges Butchies-Design */
-[data-bmc-theme="aurora"] {
-  --bmc-background:#08171d;--bmc-panel:#18333c;--bmc-accent:#4ccac2;
-  --bmc-text:#ecffff;--bmc-muted:#9fc8d0;--bmc-border:color-mix(in srgb,#4ccac2 18%,transparent);
-  --bmc-hover:color-mix(in srgb,#4ccac2 17%,#18333c);
-  --bmc-shadow:0 14px 36px rgba(0,0,0,.35);
-  --bmc-radius:14px;--bmc-gap:18px;
-}

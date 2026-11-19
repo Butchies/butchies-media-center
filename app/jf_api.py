@@ -1109,99 +1109,10 @@ def send_file(h, f, mime, cache='no-store'):
 WEB = None
 
 
-BMC_THEME_GREYS = {
-    'panel': ['#202020', '#1e1e1e', '#1c1c1c', '#222', '#242424', '#252528'],
-    'hover': ['#292929', '#303030', '#333', '#383838', '#3b3b3b'],
-    'accent': ['#00a4dc', '#44bae1', '#0cb0e8'],
-}
-
-
-def bmc_themes():
-    """Butchies-Designs aus bmcweb/themes/*.css (eigene Farbpaletten): id -> {name, vars}."""
-    out = {}
-    for f in sorted((S.ROOT / 'bmcweb' / 'themes').glob('*.css')):
-        try:
-            t = f.read_text('utf-8')
-        except OSError:
-            continue
-        m = re.search(r'\[data-bmc-theme="([\w-]+)"\]', t)
-        n = re.search(r'/\*\s*([^:*]+?)\s*:', t)
-        if not m:
-            continue
-        vars_ = dict(re.findall(r'(--bmc-[\w-]+)\s*:\s*([^;]+);', t))
-        out[m.group(1)] = {'name': (n.group(1).strip() if n else m.group(1)), 'vars': vars_}
-    return out
-
-
-def _rgb(hexc):
-    h = hexc.lstrip('#')
-    if len(h) == 3:
-        h = ''.join(c * 2 for c in h)
-    return '%d,%d,%d' % (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
-
-
-def bmc_theme_css(tid):
-    """Jellyfin-Theme aus dem dunklen Standard-Theme + Butchies-Farbpalette erzeugen."""
-    th = bmc_themes().get(tid)
-    base = S.ROOT / 'jfweb' / 'themes' / 'dark' / 'theme.css'
-    if not th or not base.is_file():
-        return None
-    v = th['vars']
-    bg, panel, acc = v.get('--bmc-background', '#101010'), v.get('--bmc-panel', '#202020'), v.get('--bmc-accent', '#00a4dc')
-    css = base.read_text('utf-8')
-    css = css.replace('url(../../', 'url(../../')  # relative Bildpfade bleiben gültig (gleiche Ordnertiefe)
-    css = re.sub(r'#101010\b', bg, css)
-    for k, lst in BMC_THEME_GREYS.items():
-        rep = {'panel': panel, 'hover': 'var(--bmc-hover)', 'accent': acc}[k]
-        for c in lst:
-            css = re.sub(re.escape(c) + r'\b', rep, css)
-    css = css.replace('rgba(0,164,220,', 'rgba(%s,' % _rgb(acc))
-    css = css.replace('rgba(0,0,0,.86)', 'rgba(%s,.86)' % _rgb(bg))
-    for a in ('rgba(34,34,34,', 'rgba(32,32,32,', 'rgba(30,30,30,'):
-        css = css.replace(a, 'rgba(%s,' % _rgb(panel))
-    root = 'html:root{' + ''.join('%s:%s;' % kv for kv in v.items()) + 'color-scheme:dark}'
-    extra = (
-        'html{color:var(--bmc-text)}'
-        '.cardBox:not(.visualCardBox) .cardPadder,.cardPadder{background-color:var(--bmc-panel)}'
-        '.defaultCardBackground1{background-color:color-mix(in srgb,var(--bmc-accent) 55%,var(--bmc-panel))}'
-        '.defaultCardBackground2{background-color:color-mix(in srgb,var(--bmc-accent) 40%,var(--bmc-panel))}'
-        '.defaultCardBackground3{background-color:color-mix(in srgb,var(--bmc-accent) 70%,var(--bmc-panel))}'
-        '.defaultCardBackground4{background-color:color-mix(in srgb,var(--bmc-accent) 30%,var(--bmc-panel))}'
-        '.defaultCardBackground5{background-color:color-mix(in srgb,var(--bmc-accent) 85%,var(--bmc-panel))}'
-        '.emby-select-withcolor,.emby-input,.emby-textarea{background-color:var(--bmc-panel)!important;border-color:var(--bmc-border)!important;color:var(--bmc-text)}'
-        '.button-submit,.emby-button.button-submit{background:var(--bmc-accent);color:var(--bmc-background)}'
-        '.mainDrawer,.dialog,.actionSheet{background-color:var(--bmc-panel)}'
-        '.navMenuOption-selected,.emby-tab-button-active,.emby-tab-button.emby-button-foreground{color:var(--bmc-accent)}'
-        '.cardText-secondary,.fieldDescription,.secondaryText{color:var(--bmc-muted)}'
-        '.mdl-slider-background-lower,.itemProgressBarForeground{background-color:var(--bmc-accent)!important}'
-        '.sectionTitle{color:var(--bmc-text)}'
-    )
-    return (root + css + extra).encode('utf-8')
-
-
-def bmc_config_json():
-    """config.json der Weboberfläche + die Butchies-Designs in der Theme-Auswahl."""
-    try:
-        cfg = json.loads((S.ROOT / 'jfweb' / 'config.json').read_text('utf-8'))
-    except (OSError, ValueError):
-        return None
-    names = {t.get('id') for t in cfg.get('themes', [])}
-    for tid, th in bmc_themes().items():
-        if 'bmc-' + tid not in names:
-            cfg.setdefault('themes', []).append({'name': 'Butchies ' + th['name'], 'id': 'bmc-' + tid,
-                                                 'color': th['vars'].get('--bmc-background', '#101010')})
-    return json.dumps(cfg, ensure_ascii=False, indent=2).encode('utf-8')
-
-
 def serve_web(h, rel):
     rel = urllib.parse.unquote(rel or 'index.html')
     if rel in ('', '/'):
         rel = 'index.html'
-    if rel == 'config.json' or re.match(r'^themes/bmc-[\w-]+/theme\.css$', rel):
-        data = bmc_config_json() if rel == 'config.json' else bmc_theme_css(rel.split('/')[1][4:])
-        if data is None:
-            return h.send(404, b'{"error":"NOT_FOUND"}')
-        return h.send(200, data, ('application/json' if rel.endswith('.json') else 'text/css') + '; charset=utf-8', {'Cache-Control': 'no-cache'})
     root = (S.ROOT / 'jfweb').resolve()
     own = rel.startswith('bmc/')
     if own:

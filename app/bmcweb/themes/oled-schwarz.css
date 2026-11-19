@@ -1,8 +1,0 @@
-/* OLED Schwarz: eigenständiges Butchies-Design */
-[data-bmc-theme="oled-schwarz"] {
-  --bmc-background:#000000;--bmc-panel:#141414;--bmc-accent:#bfc4cc;
-  --bmc-text:#ffffff;--bmc-muted:#a3a6ac;--bmc-border:color-mix(in srgb,#bfc4cc 18%,transparent);
-  --bmc-hover:color-mix(in srgb,#bfc4cc 17%,#141414);
-  --bmc-shadow:0 14px 36px rgba(0,0,0,.35);
-  --bmc-radius:14px;--bmc-gap:18px;
-}
