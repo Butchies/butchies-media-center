@@ -1,0 +1,8 @@
+/* Butchies Media Center: home card artwork proportions. */
+.bmc-artwork-home .bmc-artwork-card .cardImageContainer{width:100%;background-position:center;background-repeat:no-repeat;background-size:cover;overflow:hidden}
+.bmc-artwork-home .bmc-artwork-card .cardImageContainer img{width:100%;height:100%;object-fit:cover}
+.bmc-artwork-home .bmc-artwork-poster .cardImageContainer{aspect-ratio:2/3}
+.bmc-artwork-home .bmc-artwork-wide .cardImageContainer{aspect-ratio:16/9}
+.bmc-artwork-home .bmc-artwork-square .cardImageContainer{aspect-ratio:1}
+.bmc-artwork-home .bmc-artwork-classic .cardImageContainer{aspect-ratio:4/3}
+.bmc-artwork-home .bmc-artwork-banner .cardImageContainer{aspect-ratio:1000/185}
