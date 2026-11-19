@@ -1,0 +1,8 @@
+/* Kinosaal Rot: eigenständiges Butchies-Design */
+[data-bmc-theme="kinosaal-rot"] {
+  --bmc-background:#170b12;--bmc-panel:#321721;--bmc-accent:#d84555;
+  --bmc-text:#fff0f0;--bmc-muted:#c6a0aa;--bmc-border:color-mix(in srgb,#d84555 18%,transparent);
+  --bmc-hover:color-mix(in srgb,#d84555 17%,#321721);
+  --bmc-shadow:0 14px 36px rgba(0,0,0,.35);
+  --bmc-radius:14px;--bmc-gap:18px;
+}

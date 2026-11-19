@@ -1,0 +1,8 @@
+/* Mitternachtsblau: eigenständiges Butchies-Design */
+[data-bmc-theme="mitternachtsblau"] {
+  --bmc-background:#080f21;--bmc-panel:#152844;--bmc-accent:#428df4;
+  --bmc-text:#eef5ff;--bmc-muted:#9ab1d0;--bmc-border:color-mix(in srgb,#428df4 18%,transparent);
+  --bmc-hover:color-mix(in srgb,#428df4 17%,#152844);
+  --bmc-shadow:0 14px 36px rgba(0,0,0,.35);
+  --bmc-radius:14px;--bmc-gap:18px;
+}

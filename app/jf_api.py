@@ -1148,6 +1148,8 @@ def serve_web(h, rel):
                '<script defer src="bmc/bmc-core.js?v=%s"></script>') % (v, v, v, v, v)
         if player_look():  # Detailseite im gewohnten Aufbau gehört zum Butchies-Aussehen
             inj += '<link rel="stylesheet" href="bmc/bmc-detail.css?v=%s"><script defer src="bmc/bmc-detail.js?v=%s"></script>' % (v, v)
+            inj += '<link rel="stylesheet" href="bmc/bmc-moviedetail.css?v=%s"><script defer src="bmc/bmc-moviedetail.js?v=%s"></script>' % (v, v)
+            inj += '<link rel="stylesheet" href="bmc/bmc-shell.css?v=%s"><script defer src="bmc/bmc-shell.js?v=%s"></script>' % (v, v)
         if player_look():  # Butchies-Player nur, wenn unter Dashboard → Plugins eingeschaltet
             inj += '<link rel="stylesheet" href="bmc/bmc-player.css?v=%s"><script defer src="bmc/bmc-player.js?v=%s"></script>' % (v, v)
         inj = (inj + '</head>').encode()
@@ -1707,7 +1709,7 @@ def route(h, method, path, p):
                                          '&PlaySessionId=%s&api_key=%s%s%s' % (o['jid'], o['jid'], psid, urllib.parse.quote(auth_token(h)),
                                                                                 '&AudioStreamIndex=%d' % aidx if aidx is not None else '',
                                                                                 '&StartTimeTicks=%d' % sticks if sticks > 0 else ''))
-            return J(h, {'MediaSources': [ms], 'PlaySessionId': psid})
+            return J(h, {'MediaSources': [ms], 'PlaySessionId': psid, 'BmcHelper': helper})
         if rest in ('similar', 'instantmix'):
             pool = [x for x in cat['items'].values() if x['type'] == o['type'] and x['jid'] != o['jid'] and x['lib'] == o['lib']]
             import random
