@@ -2,6 +2,15 @@
 
 Neueste zuerst.
 
+## 19.11.2026 – Butchies Media Center 3.11.0: Player komplett
+- **Schlaftimer** im Player (Mond-Symbol neben dem Tempo): 15/30/45/60/90/120 Minuten oder „Ende dieses Titels“ – danach hält die Wiedergabe an.
+- **Warteschlange** als Reiter unter dem Player, wenn mehrere Titel nacheinander laufen (Wiedergabeliste, Sammlung, „Alle abspielen“).
+- **Kapitel** aus der Datei: Markierungen auf der Zeitleiste, Kapitelname beim Ziehen, Knöpfe „Vorheriges/Nächstes Kapitel“, Reiter „Kapitel“.
+- **Ton und Untertitel nach deinen Einstellungen** (Einstellungen → Wiedergabe / Untertitel): bevorzugte Tonsprache, „Standard-Tonspur abspielen“, Untertitel-Modus Standard / Immer / Nur erzwungene / Intelligent / Keine, bevorzugte Untertitelsprache.
+- **Aktive Geräte** im Dashboard: wer gerade was schaut (Titel, Position, Pause, Gerät, App). **Geräte**-Seite mit allen Geräten, die sich angemeldet haben (umbenennen, entfernen). Jede Wiedergabe wird im Verlauf gespeichert (nur auf dem NAS).
+- Gesperrte Filme (über 1080p bzw. Auflösung noch unbekannt): verständlicher deutscher Hinweis statt nur „nicht erlaubt“.
+- Eingebettete Untertitel mit Standard-Markierung werden als solche erkannt.
+
 ## 19.11.2026 – Butchies Media Center 3.10.0: Medieninformationen komplett
 - **Bilder bearbeiten** (⋮ → „Bilder bearbeiten“): Plakat, Hintergründe (mehrere, Reihenfolge mit ‹ ›), Logo, Vorschaubild, Banner hochladen, löschen oder über 🔍 ein anderes Bild von TMDb wählen. Bilder neben deinen Filmen werden dabei nie gelöscht oder verändert – „Löschen“ blendet sie nur aus. „Metadaten aktualisieren“ mit „Alle Bilder ersetzen“ stellt den Ursprung wieder her.
 - **Feldsperren** (Metadaten bearbeiten → „Aktivierte Felder“ bzw. „Dieses Objekt sperren“): gesperrte Felder bleiben, wie sie sind, auch wenn TMDb später etwas anderes liefert. Gespeichert werden nur noch Felder, die du wirklich geändert oder gesperrt hast – alles andere aktualisiert sich weiter automatisch.

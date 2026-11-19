@@ -102,3 +102,10 @@ body.bmc-osd #videoOsdPage .mdl-slider-background-flex{height:.22em;margin-top:-
   text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000,-1px -1px 2px #000,2px 2px 6px rgba(0,0,0,.8)!important}
 body:has(.videoOsdBottom:not(.videoOsdBottom-hidden)) .videoSubtitles{transform:translateY(-150px)}
 @media (max-width:600px){body:has(.videoOsdBottom:not(.videoOsdBottom-hidden)) .videoSubtitles{transform:translateY(-170px)}}
+
+/* Schlaftimer, Menü-Überschrift, Hinweis, Warteschlange */
+#bmcMenu .bmcMenuT{padding:.55em 1.2em .45em;font-size:.85em;opacity:.65;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:.25em;white-space:nowrap}
+#bmcSleep.bmcOn .material-icons{color:#00a4dc}
+#bmcToast{position:fixed;left:50%;bottom:18%;transform:translateX(-50%);z-index:3000;background:rgba(20,20,20,.92);color:#fff;
+  padding:.8em 1.4em;border-radius:.4em;font-size:1.05em;box-shadow:0 .3em 1.2em rgba(0,0,0,.6);max-width:90vw;text-align:center}
+#bmcPanel .bmcCard.cur .bmcCardT{color:#00a4dc;font-weight:700}

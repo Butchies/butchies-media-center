@@ -15,6 +15,7 @@ import jf_meta
 import jf_ws
 import jf_playlists
 import jf_images
+import jf_sessions
 import sys as _sys
 
 S = None  # das server-Modul (wird in setup() gesetzt)
@@ -44,6 +45,7 @@ def setup(server_module):
     threading.Thread(target=_probe_loop, daemon=True).start()
     jf_meta.setup(server_module, _sys.modules[__name__])
     jf_images.setup(server_module, _sys.modules[__name__], jf_meta)
+    jf_sessions.setup(server_module, _sys.modules[__name__])
     jf_playlists.setup(server_module, _sys.modules[__name__])
     if 'wizard_done' not in jf_settings() and S.accounts.count():
         save_setting('wizard_done', True)  # bestehende Installation: Einrichtung gilt als erledigt
@@ -758,6 +760,42 @@ DEFAULT_USERCONFIG = {'AudioLanguagePreference': '', 'PlayDefaultAudioTrack': Tr
                       'DisplayCollectionsView': False, 'EnableLocalPassword': False, 'OrderedViews': [], 'LatestItemsExcludes': [],
                       'MyMediaExcludes': [], 'HidePlayedInLatest': True, 'RememberAudioSelections': True,
                       'RememberSubtitleSelections': True, 'EnableNextEpisodeAutoPlay': True, 'CastReceiverId': 'F007D354'}
+
+
+def _lang_ok(stream_lang, pref):
+    a, b = jf_subs.lang_code(stream_lang or ''), jf_subs.lang_code(pref or '')
+    return bool(b) and b != 'und' and a == b
+
+
+def pick_tracks(streams, cfg):
+    """Ton- und Untertitelspur nach den Einstellungen des Benutzers wählen (Einstellungen → Wiedergabe / Untertitel):
+    bevorzugte Tonsprache, „Standard-Tonspur abspielen“, Untertitel-Modus Standard/Immer/Nur erzwungene/Intelligent/Keine."""
+    aud = [x for x in streams if x['Type'] == 'Audio']
+    sub = [x for x in streams if x['Type'] == 'Subtitle']
+    apref = cfg.get('AudioLanguagePreference') or ''
+    a = next((x for x in aud if _lang_ok(x.get('Language'), apref)), None) if apref else None
+    if not a and cfg.get('PlayDefaultAudioTrack', True):
+        a = next((x for x in aud if x.get('IsDefault')), None)
+    a = a or (aud[0] if aud else None)
+    mode = cfg.get('SubtitleMode') or 'Default'
+    spref = cfg.get('SubtitleLanguagePreference') or ''
+    in_pref = [x for x in sub if _lang_ok(x.get('Language'), spref)] if spref else []
+    forced = [x for x in (in_pref or sub) if x.get('IsForced')]
+    s = None
+    if mode == 'None':
+        s = None
+    elif mode == 'OnlyForced':
+        s = forced[0] if forced else None
+    elif mode == 'Always':
+        s = (in_pref or sub or [None])[0]
+    elif mode == 'Smart':  # Untertitel nur, wenn der Ton nicht in der Wunsch-Sprache ist
+        if a and spref and not _lang_ok(a.get('Language'), spref):
+            s = (in_pref or [None])[0]
+        else:
+            s = forced[0] if forced else None
+    else:  # Standard: erzwungene oder als Standard markierte
+        s = forced[0] if forced else next((x for x in (in_pref or sub) if x.get('IsDefault') and not x.get('IsExternal')), None)
+    return (a['Index'] if a else None), (s['Index'] if s else -1)
 
 
 def load_userconfig(user_id):
@@ -1511,6 +1549,7 @@ def route(h, method, path, p):
         else:
             return J(h, {'error': 'AUTH_REQUIRED'}, 401) if is_api(p) else False
     if user:
+        jf_sessions.touch(h, user)
         import jf_admin
         r = jf_admin.route(h, method, path, p, q, user, sid)
         if r is not None:
@@ -1740,8 +1779,11 @@ def route(h, method, path, p):
             except (TypeError, ValueError):
                 sidx = None
             subs = [x['Index'] for x in ms['MediaStreams'] if x['Type'] == 'Subtitle']
-            if sidx is None:  # wie Jellyfin: erzwungene Untertitel automatisch, sonst aus
-                sidx = next((x['Index'] for x in ms['MediaStreams'] if x['Type'] == 'Subtitle' and x.get('IsForced')), -1)
+            pa, ps = pick_tracks(ms['MediaStreams'], load_userconfig(user[0]))
+            if aidx is None and pa is not None:
+                ms['DefaultAudioStreamIndex'] = pa
+            if sidx is None:  # nach den Wiedergabe-Einstellungen des Benutzers (Sprache, Untertitel-Modus)
+                sidx = ps
             ms['DefaultSubtitleStreamIndex'] = sidx if sidx in subs else -1
             if q.get('bmcplayer') == '1':
                 decision = 'direct'  # Butchies-Web-Player entschlüsselt selbst – braucht nur Spuren + Untertitel
@@ -1832,7 +1874,7 @@ def route(h, method, path, p):
     if p.startswith('/sessions/capabilities'):
         body_json(h); return none(h)
     if p == '/sessions':
-        return J(h, [])
+        return J(h, jf_sessions.sessions(catalog(), user, sid, q))
     if p == '/plugins':
         return J(h, plugins_list())
     if p.startswith('/plugins/'):
@@ -2126,6 +2168,7 @@ def report(h, cat, user, p):
                   'ON CONFLICT(user_id,media_id) DO UPDATE SET position=excluded.position,duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE playback_progress.duration END,'
                   'updated=excluded.updated,completed=excluded.completed',
                   (user[0], o['mid'], pos, dur, now, done))
+    jf_sessions.report(h, user, 'stopped' if p.endswith('/stopped') else 'progress' if p.endswith('/progress') else 'start', d, o)
     if p.endswith('/stopped'):
         notify_userdata(cat, user[0], [o['jid']])
     return none(h)

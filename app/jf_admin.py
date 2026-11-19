@@ -390,7 +390,23 @@ def route(h, method, path, p, q, user, sid):
     if p == '/system/logs':
         return A.J(h, [])
     if p == '/devices':
-        return A.J(h, {'Items': [], 'TotalRecordCount': 0, 'StartIndex': 0})
+        if method == 'DELETE':
+            if not admin:
+                return snd(h, 403, b'', 'text/plain', {})
+            A.jf_sessions.delete_device(str(q.get('id') or ''))
+            return A.none(h)
+        return A.J(h, A.jf_sessions.devices(user, sid))
+    if p in ('/devices/info', '/devices/options'):
+        did = str(q.get('id') or '')
+        if p == '/devices/options' and method == 'POST':
+            if not admin:
+                return snd(h, 403, b'', 'text/plain', {})
+            A.jf_sessions.set_name(did, A.body_json(h).get('CustomName'))
+            return A.none(h)
+        info = A.jf_sessions.device_info(did)
+        if not info:
+            return snd(h, 404, b'', 'text/plain', {})
+        return A.J(h, info if p == '/devices/info' else {'DeviceId': did, 'CustomName': info.get('CustomName')})
     if p == '/auth/providers':
         return A.J(h, [{'Name': 'Default', 'Id': 'Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider'}])
     if p == '/auth/passwordresetproviders':

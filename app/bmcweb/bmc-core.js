@@ -31,7 +31,7 @@
     } catch (e) { return false; }
   }
   function check() {
-    if (hevcOk()) return;
+    if (hevcOk() || document.querySelector('.dialog .bmc4kHint')) return;
     var dlgs = document.querySelectorAll('.dialog');
     for (var i = 0; i < dlgs.length; i++) {
       var d = dlgs[i];
@@ -46,7 +46,22 @@
       txt.appendChild(p);
     }
   }
-  new MutationObserver(check).observe(document.documentElement, { childList: true, subtree: true });
+  function check4k() {  // Wiedergabe gesperrt (4K / unbekannte Auflösung): verständlich erklären
+    var dlgs = document.querySelectorAll('.dialog');
+    for (var i = 0; i < dlgs.length; i++) {
+      var d = dlgs[i];
+      if (d.querySelector('.bmc4kHint') || !/nicht erlaubt|not allowed/i.test(d.textContent || '')) continue;
+      var p = document.createElement('div');
+      p.className = 'bmc4kHint';
+      p.setAttribute('style', 'margin:1em auto 0;max-width:30em;text-align:left;font-size:.95em;line-height:1.45;opacity:.95');
+      p.innerHTML = '<b>Dieser Film ist auf dem NAS gesperrt.</b> Filme über 1080p (z. B. 4K) und Filme, deren Auflösung noch nicht ' +
+        'gelesen werden konnte, gibt das Media Center nicht heraus – das NAS schafft die Datenmenge nicht ruckelfrei.<br>' +
+        '• Ist der Film gerade erst dazugekommen: ein paar Minuten warten, dann wird die Auflösung gelesen.<br>' +
+        '• 4K-Filme bitte als 1080p-Fassung in die Bibliothek legen.';
+      (d.querySelector('.text, p, .dialogContentInner') || d).appendChild(p);
+    }
+  }
+  new MutationObserver(function () { check(); check4k(); }).observe(document.documentElement, { childList: true, subtree: true });
 })();
 /* Butchies-Player: Kann der Browser einen Film nicht selbst abspielen (z. B. x265 ohne Grafikkarten-Unterstützung),
    öffnet sich automatisch der Butchies-Player. Er entschlüsselt den Film auf diesem Gerät (WebAssembly),

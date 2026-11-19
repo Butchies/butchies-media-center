@@ -48,7 +48,7 @@
 
   function cleanup() {
     restore(); unIcons(); closeMenus();
-    ['#bmcLogo', '#bmcBar', '#bmcRemain', '#bmcTabs', '#bmcPanel', '#bmcSpeed'].forEach(function (s) { var e = $(s); if (e) e.remove(); });
+    ['#bmcLogo', '#bmcBar', '#bmcRemain', '#bmcTabs', '#bmcPanel', '#bmcSpeed', '#bmcSleep'].forEach(function (s) { var e = $(s); if (e) e.remove(); });
     document.body.classList.remove('bmc-osd');
     curId = null; curItem = null;
   }
@@ -72,6 +72,13 @@
       sp.innerHTML = '<span class="xlargePaperIconButton material-icons speed" aria-hidden="true"></span>';
       sp.addEventListener('click', function (e) { e.stopPropagation(); speedMenu(sp, page); });
       right.appendChild(sp);
+    }
+    if (!$('#bmcSleep')) {
+      var sl = document.createElement('button');
+      sl.id = 'bmcSleep'; sl.type = 'button'; sl.className = 'autoSize paper-icon-button-light'; sl.title = 'Schlaftimer';
+      sl.innerHTML = '<span class="xlargePaperIconButton material-icons bedtime" aria-hidden="true"></span>';
+      sl.addEventListener('click', function (e) { e.stopPropagation(); sleepMenu(sl, page); });
+      right.insertBefore(sl, $('#bmcSpeed'));
     }
     ['.btnVideoOsdSettings', '.btnFullscreen'].forEach(function (s) { move($(s, page), right); });
     var fav = $('.btnUserRating', page); if (fav) fav.classList.add('bmcGone');
@@ -147,8 +154,51 @@
     if (b && b.classList.contains('arrow_back_ios_new')) { b.classList.remove('arrow_back_ios_new'); b.classList.add('arrow_back'); }
   }
 
-  // ---- Wiedergabegeschwindigkeit
+  // ---- Menüs (Wiedergabegeschwindigkeit, Schlaftimer)
   function closeMenus() { var m = $('#bmcMenu'); if (m) m.remove(); }
+  function popMenu(btn, title, entries) {
+    if ($('#bmcMenu')) { closeMenus(); return; }
+    var m = document.createElement('div'); m.id = 'bmcMenu';
+    if (title) { var h = document.createElement('div'); h.className = 'bmcMenuT'; h.textContent = title; m.appendChild(h); }
+    entries.forEach(function (en) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = en[0];
+      if (en[1]) b.className = 'on';
+      b.addEventListener('click', function (e) { e.stopPropagation(); en[2](); closeMenus(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    var r = btn.getBoundingClientRect();
+    m.style.right = Math.max(8, innerWidth - r.right) + 'px'; m.style.bottom = (innerHeight - r.top + 8) + 'px';
+    setTimeout(function () { document.addEventListener('click', closeMenus, { once: true }); }, 0);
+  }
+  // Schlaftimer: hält die Wiedergabe nach X Minuten oder am Ende des laufenden Films / der Folge an
+  var sleep = { at: 0, end: false, id: null };
+  function sleepLabel() {
+    if (sleep.end) return 'Ende dieses Titels';
+    if (!sleep.at) return 'Aus';
+    return 'noch ' + Math.max(1, Math.ceil((sleep.at - Date.now()) / 60000)) + ' Min.';
+  }
+  function sleepMenu(btn, page) {
+    var opts = [['Aus', !sleep.at && !sleep.end, function () { sleep = { at: 0, end: false, id: null }; }]];
+    [15, 30, 45, 60, 90, 120].forEach(function (mn) {
+      opts.push([mn + ' Minuten', false, function () { sleep = { at: Date.now() + mn * 60000, end: false, id: null }; }]);
+    });
+    opts.push(['Ende dieses Titels', sleep.end, function () { sleep = { at: 0, end: true, id: curId }; }]);
+    popMenu(btn, 'Schlaftimer · ' + sleepLabel(), opts);
+  }
+  function sleepTick(page) {
+    var btn = $('#bmcSleep'), on = !!(sleep.at || sleep.end);
+    if (btn) { btn.classList.toggle('bmcOn', on); btn.title = 'Schlaftimer: ' + sleepLabel(); }
+    if (!on) return;
+    var v = $('video', page); if (!v) return;
+    var hit = (sleep.at && Date.now() >= sleep.at) ||
+      (sleep.end && (curId !== sleep.id || (v.duration && v.currentTime >= v.duration - 1.5)));
+    if (!hit) return;
+    sleep = { at: 0, end: false, id: null };
+    try { v.pause(); } catch (e) {}
+    var t = document.createElement('div'); t.id = 'bmcToast'; t.textContent = 'Schlaftimer: Wiedergabe angehalten. Gute Nacht!';
+    document.body.appendChild(t); setTimeout(function () { t.remove(); }, 6000);
+  }
   function speedMenu(btn, page) {
     if ($('#bmcMenu')) { closeMenus(); return; }
     var v = $('video', page); if (!v) return;
@@ -186,6 +236,29 @@
     });
     var panel = document.createElement('div'); panel.id = 'bmcPanel'; panel.hidden = true;
     bottom.appendChild(row); bottom.appendChild(panel);
+    if (curItem.Type !== 'Episode') {  // Warteschlange (z. B. Wiedergabeliste, Sammlung, „Alle abspielen“)
+      var forId = curItem.Id;
+      queueItems().then(function (q) {
+        if (tabItem !== forId || q.length < 2 || row.querySelector('[data-tab="queue"]')) return;
+        var b = document.createElement('button'); b.type = 'button'; b.dataset.tab = 'queue'; b.textContent = 'Warteschlange';
+        b.addEventListener('click', function (e) { e.stopPropagation(); openTab('queue', page); });
+        row.appendChild(b);
+      });
+    }
+  }
+  function queueItems() {
+    var c = api();
+    try {
+      return c.getJSON(c.getUrl('Sessions', { DeviceId: c.deviceId() })).then(function (ss) {
+        var q = ((ss || [])[0] || {}).NowPlayingQueue || [];
+        if (q.length < 2) return [];
+        return c.getItems(c.getCurrentUserId(), { Ids: q.slice(0, 100).map(function (x) { return x.Id; }).join(','), Fields: 'Overview' })
+          .then(function (r) {
+            var by = {}; (r.Items || []).forEach(function (x) { by[x.Id] = x; });
+            return q.map(function (x) { return by[x.Id]; }).filter(Boolean);
+          });
+      }).catch(function () { return []; });
+    } catch (e) { return Promise.resolve([]); }
   }
   function card(imgUrl, title, sub, onClick, wide) {
     var c = document.createElement('button'); c.type = 'button'; c.className = 'bmcCard' + (wide ? ' wide' : '');
@@ -223,6 +296,20 @@
         var u = pp.PrimaryImageTag ? img(pp.Id, 'Primary', pp.PrimaryImageTag, 300) : null;
         panel.appendChild(card(u, pp.Name, pp.Role || (pp.Type === 'Director' ? 'Regie' : ''), null));
       });
+    } else if (kind === 'queue') {
+      queueItems().then(function (q) {
+        if (tabOpen !== 'queue') return;
+        var k = q.findIndex(function (e) { return e.Id === it.Id; });
+        q.forEach(function (e, n) {
+          var u = e.ImageTags && e.ImageTags.Primary ? img(e.Id, 'Primary', e.ImageTags.Primary, 200) : null;
+          var cd = card(u, e.Name, n === k ? 'Läuft gerade' : (n < k ? 'Gesehen' : ''), n === k + 1 ? function () { var nb = $('.btnNextTrack', page); if (nb) nb.click(); }
+            : n === k - 1 ? function () { var pb = $('.btnPreviousTrack', page); if (pb) pb.click(); }
+            : function () { location.hash = '#/details?id=' + e.Id; }, true);
+          if (n === k) cd.classList.add('cur');
+          panel.appendChild(cd);
+        });
+        if (!panel.children.length) panel.textContent = 'Die Warteschlange ist leer.';
+      });
     } else if (kind === 'next') {
       c.getEpisodes(it.SeriesId, { userId: c.getCurrentUserId(), Fields: 'Overview' }).then(function (r) {
         if (tabOpen !== 'next') return;
@@ -250,7 +337,7 @@
     var page = osdPage();
     if (!page) { if (curId || $('#bmcLogo') || moved.length) cleanup(); return; }
     document.body.classList.add('bmc-osd');
-    layout(page); icons(page); updateTimes(page); syncVisibility(page);
+    layout(page); icons(page); updateTimes(page); syncVisibility(page); sleepTick(page);
     var id = currentId();
     if (!id || !api()) return;
     if (id !== curId) {

@@ -268,7 +268,7 @@ def streams(o, first_index, token=''):
         if not text and codec not in IMAGE_OK:
             continue                                     # z. B. DVD-Untertitel: kann kein Client ohne Umrechnung
         out.append(_dto(o, i, codec, lang_code(st.get('language')), st.get('title') or '', False,
-                        bool(st.get('forced')), False, bool(st.get('sdh')), token))
+                        bool(st.get('forced')), bool(st.get('default')), bool(st.get('sdh')), token))
     for k, x in enumerate(external(o['path'])):
         out.append(_dto(o, first_index + k, x['codec'], x['language'], '', True, x['forced'], x['default'], x['sdh'], token))
     return out
