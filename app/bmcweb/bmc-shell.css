@@ -51,3 +51,23 @@ body.bmcShellOn{overflow:hidden}
 #bmcShell .bmc-card.wide{flex-basis:calc(220px * (1 - var(--bmc-cs,0) * .14))}
 #bmcShell .bmc-tool .lbl{display:none}
 }
+/* --- Suche und Einstellungen (Bausteine aus butchies-ui.css: bmc-select, bmc-dialog, bmc-action) --- */
+#bmcShell .bmc-search{width:min(640px,100%);font-size:17px;padding:13px 16px}
+#bmcShell .bmc-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--bmc-gap)}
+#bmcShell .bmc-tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--bmc-panel);color:var(--bmc-text);border:1px solid var(--bmc-border);border-radius:var(--bmc-radius);padding:20px;box-shadow:var(--bmc-shadow)}
+#bmcShell .bmc-tile:hover{background:var(--bmc-hover)}
+#bmcShell .bmc-tile .ico{font-size:26px;margin-bottom:6px}
+#bmcShell .bmc-tile strong{font-size:17px}
+#bmcShell .bmc-tile span:last-child{color:var(--bmc-muted);font-size:13px}
+#bmcShell .bmc-form{max-width:720px}
+#bmcShell .bmc-field{margin:0 0 20px}
+#bmcShell .bmc-field>label{display:block;font-weight:700;margin-bottom:7px}
+#bmcShell .bmc-field .bmc-select{width:min(420px,100%)}
+#bmcShell .bmc-check{display:flex;gap:10px;align-items:flex-start;color:var(--bmc-muted);font-weight:400}
+#bmcShell .bmc-check input{margin-top:4px;accent-color:var(--bmc-accent)}
+#bmcShell .bmc-hint{color:var(--bmc-muted);font-size:13px;margin:6px 0 0}
+#bmcShell .bmc-back{color:var(--bmc-muted);cursor:pointer;text-decoration:none}
+#bmcShell .bmc-back:hover{color:var(--bmc-text)}
+#bmcShell .bmc-form .bmc-section{margin-top:10px}
+#bmcShell .bmc-toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:var(--bmc-accent);color:var(--bmc-background);font-weight:700;padding:10px 18px;border-radius:30px;opacity:0;transition:.2s;pointer-events:none;z-index:5}
+#bmcShell .bmc-toast.on{opacity:1;transform:translate(-50%,0)}

@@ -1543,6 +1543,12 @@ def route(h, method, path, p):
             ars.sort(key=lambda a: a['name'].lower())
             start = int(q.get('startindex') or 0); lim = int(q.get('limit') or 0) or len(ars)
             return J(h, {'Items': [dto(cat, a, state, sid) for a in ars[start:start + lim]], 'TotalRecordCount': len(ars), 'StartIndex': start})
+        if p == '/persons':  # Suche nach Schauspielern/Regie (Butchies-Suche)
+            term = (q.get('searchterm') or '').strip().lower()
+            ps = [a for a in cat.get('people', {}).values() if a['type'] != 'MusicArtist' and (not term or term in a['name'].lower())]
+            ps.sort(key=lambda a: a['name'].lower())
+            start = int(q.get('startindex') or 0); lim = int(q.get('limit') or 0) or len(ps)
+            return J(h, {'Items': [dto(cat, a, state, sid) for a in ps[start:start + lim]], 'TotalRecordCount': len(ps), 'StartIndex': start})
         if p == '/genres':
             gs = sorted({g for o in query_items(cat, q, user, state) for g in o.get('genres', [])})
             return J(h, {'Items': [{'Name': g, 'Id': _h('genre', g) + '00', 'Type': 'Genre', 'ServerId': sid, 'ImageTags': {}} for g in gs],

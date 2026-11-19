@@ -48,6 +48,9 @@ Selbst bauen auf einem Linux-Rechner: `sh build.sh` → Ergebnis in `dist/`.
 | `install.sh`, `preinst.sh`, `init.sh`, `start.sh`, `stop.sh`, `remove.sh`, `clean.sh`, `wd_env.sh`, `install_app.sh` | Schritte, die das WD-Dashboard beim Installieren, Starten, Stoppen und Entfernen ausführt |
 | `wdweb/` | Kachel und Seite der App im WD-Dashboard |
 | `bmcweb/bmc-detail.css`, `bmcweb/bmc-detail.js` | Detailseite von Filmen/Serien im gewohnten Aufbau (Poster links, Infos rechts, ganzseitiger Hintergrund) |
+| `bmcweb/bmc-shell.css`, `bmcweb/bmc-shell.js` | Oberfläche nach `design/designsystem`: Seitenleiste, Startseite, Bibliotheken, Suche, Einstellungen |
+| `bmcweb/bmc-moviedetail.css`, `bmcweb/bmc-moviedetail.js` | Detailseiten nach `design/film-detailseite` (Film, Folge, Serie, Album, Sammlung, Person) |
+| `bmcweb/play/` | Player nach `design/player` (Direct Stream, Wiedergabeeinstellungen, Wiedergabeliste) |
 | `bmcweb/bmc-cardsize.css`, `bmcweb/bmc-cardsize.js` | Einstellung „Bildgröße“ (Einstellungen → Anzeige): Kachelgröße pro Gerät |
 | `bmcweb/bmc-artwork.css`, `bmcweb/bmc-artwork.js` | Startseite: Kachelform passend zum Bildformat (hochkant, breit, quadratisch, 4:3, Banner) |
 | `bmcweb/bmc-core.js` | Kleine technische Hilfen in der Jellyfin-Oberfläche (Untertitel-Darstellung, Hinweise bei x265) |
@@ -55,7 +58,7 @@ Selbst bauen auf einem Linux-Rechner: `sh build.sh` → Ergebnis in `dist/`.
 | `bmcweb/player/` | Butchies-Web-Player für Browser, die einen Film nicht selbst können (nur mit Plugin „Browser-Hilfe“) |
 | `bmcweb/tmdb-config.html`, `bmcweb/switch-config.html` | Einstellungsseiten der Plugins „TMDb-Metadaten“ und „Browser-Hilfe“ |
 | `remote/enable-remote.sh`, `remote/disable-remote.sh` | Zugang von unterwegs über Port 8920 ein- bzw. ausschalten |
-| `../design/` | Vorlagen-Paket Film-Detailseite als Nachschlagewerk, nicht in der App |
+| `../design/` | Eigene Vorlagen (Designsystem, Film-Detailseite, Player) – die CSS wird mit `tools/scope_css.py` übernommen |
 | `../preview/index.html` | Designvorschau mit Beispieldaten (nicht in der App) |
 | `cacert.pem` | Liste vertrauenswürdiger Zertifikate (für TMDb, falls dem NAS-Python welche fehlen) |
 

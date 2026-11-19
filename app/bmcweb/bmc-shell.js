@@ -15,6 +15,9 @@
   function route() {
     var h = location.hash || '';
     if (h === '' || h === '#' || h === '#/' || /^#\/home(\.html)?(\?.*)?$/.test(h)) return { page: 'home' };
+    if (/^#\/search(\.html)?(\?.*)?$/.test(h)) return { page: 'search' };
+    var pm = h.match(/^#\/(mypreferencesmenu|mypreferencesplayback|mypreferencessubtitles|mypreferencesdisplay|userprofile)(\.html)?(\?.*)?$/);
+    if (pm) return { page: 'settings', sub: pm[1] };
     var m = h.match(/^#\/(movies|tv|music|list)(\.html)?\?/);
     if (m) { var id = q('topParentId') || q('parentId'); if (/^[0-9a-f]{32}$/i.test(id)) return { page: 'lib', id: id.toLowerCase(), kind: m[1] }; }
     return null;
@@ -86,8 +89,8 @@
       (VIEWS || []).map(function (v) {
         return '<a class="bmc-nav' + (active === v.Id ? ' active' : '') + '" data-go="' + esc(libHash(v)) + '">' + libIcon(v.CollectionType) + ' &nbsp; ' + esc(v.Name) + '</a>';
       }).join('') +
-      '<div class="bmc-navsep"></div><a class="bmc-nav" data-go="#/search">⌕ &nbsp; Suche</a>' +
-      '<a class="bmc-nav" data-go="#/mypreferencesmenu">⚙ &nbsp; Einstellungen</a>' +
+      '<div class="bmc-navsep"></div><a class="bmc-nav' + (active === 'search' ? ' active' : '') + '" data-go="#/search">⌕ &nbsp; Suche</a>' +
+      '<a class="bmc-nav' + (active === 'settings' ? ' active' : '') + '" data-go="#/mypreferencesmenu">⚙ &nbsp; Einstellungen</a>' +
       (ADMIN ? '<a class="bmc-nav" data-go="#/dashboard">⚒ &nbsp; Verwaltung</a>' : '');
     return '<div class="bmc-shell"><aside class="bmc-sidebar"><div class="bmc-brand" data-go="#/home">BUTCHIES MEDIA CENTER</div>' + nav + '</aside>' +
       '<main class="bmc-main"><header class="bmc-header"><div><button class="bmc-tool bmc-menubtn" data-act="menu">☰</button> <strong>' + esc(title) + '</strong></div>' +
@@ -119,6 +122,8 @@
         else if (s) s.remove();
       } else if (a.dataset.act === 'scrim') { sb && sb.classList.remove('open'); a.remove(); }
       else if (a.dataset.act === 'more') moreLib();
+      else if (a.dataset.act === 'savepw') savePw();
+      else if (a.dataset.act === 'logout') logout();
       else if (a.dataset.act === 'play') location.href = '/web/bmc/play/index.html?id=' + a.dataset.id;
       return;
     }
@@ -214,6 +219,144 @@
     }, function () { st.busy = false; st.total = st.items.length; if (L === st) paintLib(); });
   }
 
+
+  /* ---------- Suche ---------- */
+  var SQ = { term: '', res: null, t: 0 };
+  var GROUPS = [['Movie', 'Filme', 'poster'], ['Series', 'Serien', 'poster'], ['Episode', 'Folgen', 'wide'], ['MusicAlbum', 'Alben', 'square'],
+    ['Audio', 'Titel', 'square'], ['MusicArtist', 'Künstler', 'square'], ['BoxSet', 'Sammlungen', 'poster'], ['Person', 'Personen', 'poster']];
+  function search(c, t) {
+    var term = q('query') || SQ.term;
+    SQ.term = term;
+    paint(shell('search', 'Suche', '<h1 class="bmc-heading">Suche</h1><div class="bmc-filter"><input class="bmc-select bmc-search" id="bmcQ" type="search" placeholder="Film, Serie, Folge, Musik oder Person …" value="' + esc(term) + '" autocomplete="off"></div><div id="bmcRes">' + results() + '</div>'), true);
+    var inp = document.getElementById('bmcQ');
+    if (inp) {
+      if (!window.matchMedia || !matchMedia('(pointer:coarse)').matches || !term) inp.focus();
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+      inp.oninput = function () { clearTimeout(SQ.timer); SQ.timer = setTimeout(function () { run(inp.value.trim()); }, 300); };
+    }
+    if (term && !SQ.res) run(term);
+  }
+  function run(term) {
+    var c = client(); if (!c) return;
+    SQ.term = term; var my = ++SQ.t;
+    if (term.length < 2) { SQ.res = null; return fill(); }
+    var uid = c.getCurrentUserId(), res = {};
+    var jobs = GROUPS.filter(function (g) { return g[0] !== 'Person' && g[0] !== 'MusicArtist'; }).map(function (g) {
+      return c.getItems(uid, { searchTerm: term, IncludeItemTypes: g[0], Recursive: true, Limit: 24, Fields: FIELDS, EnableImageTypes: 'Primary,Backdrop,Thumb' })
+        .then(function (r) { res[g[0]] = r.Items || []; }, function () { res[g[0]] = []; });
+    });
+    jobs.push(c.getJSON(c.getUrl('Persons', { searchTerm: term, Limit: 24 })).then(function (r) { res.Person = r.Items || []; }, function () { res.Person = []; }));
+    jobs.push(c.getJSON(c.getUrl('Artists', { searchTerm: term, Limit: 24, userId: uid })).then(function (r) { res.MusicArtist = r.Items || []; }, function () { res.MusicArtist = []; }));
+    Promise.all(jobs).then(function () { if (my === SQ.t) { SQ.res = res; fill(); } });
+  }
+  function fill() { var el = document.getElementById('bmcRes'); if (el) el.innerHTML = results(); }
+  function results() {
+    if (!SQ.term || SQ.term.length < 2) return '<p class="bmc-subtitle">Tippe mindestens 2 Buchstaben.</p>';
+    if (!SQ.res) return '<p class="bmc-subtitle">Suche läuft …</p>';
+    var html = GROUPS.map(function (g) { return row(g[1], SQ.res[g[0]], g[2]); }).join('');
+    return html || '<p class="bmc-subtitle">Nichts gefunden für „' + esc(SQ.term) + '“.</p>';
+  }
+
+  /* ---------- Einstellungen ---------- */
+  var LANGS = [['', 'Egal / Standard der Datei'], ['ger', 'Deutsch'], ['eng', 'Englisch'], ['fre', 'Französisch'], ['spa', 'Spanisch'], ['ita', 'Italienisch'], ['jpn', 'Japanisch'], ['tur', 'Türkisch'], ['rus', 'Russisch'], ['pol', 'Polnisch']];
+  var SUBMODES = [['Default', 'Standard (wie in der Datei markiert)'], ['Always', 'Immer anzeigen'], ['OnlyForced', 'Nur erzwungene'], ['Smart', 'Intelligent (bei fremder Tonsprache)'], ['None', 'Keine']];
+  var SIZES = [['extrasmall', 'Extra klein'], ['smaller', 'Kleiner'], ['small', 'Klein'], ['', 'Standard'], ['large', 'Groß'], ['larger', 'Größer'], ['extralarge', 'Extra groß']];
+  var SUBSIZE = [['.8', 'Klein'], ['1', 'Normal'], ['1.25', 'Groß'], ['1.5', 'Sehr groß']];
+  function opt(list, val) { return list.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(val) === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join(''); }
+  function field(label, html, hint) { return '<div class="bmc-field"><label>' + esc(label) + '</label>' + html + (hint ? '<p class="bmc-hint">' + esc(hint) + '</p>' : '') + '</div>'; }
+  function ls(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function settings(c, r, t) {
+    var uid = c.getCurrentUserId(), sub = r.sub;
+    var TITLES = { mypreferencesmenu: 'Einstellungen', mypreferencesdisplay: 'Anzeige', mypreferencesplayback: 'Wiedergabe', mypreferencessubtitles: 'Untertitel', userprofile: 'Profil' };
+    var back = sub === 'mypreferencesmenu' ? '' : '<p><a class="bmc-back" data-go="#/mypreferencesmenu">‹ Einstellungen</a></p>';
+    if (sub === 'mypreferencesmenu') {
+      var tiles = [['#/userprofile?userId=' + uid, '👤', 'Profil', 'Name und Passwort'], ['#/mypreferencesdisplay', '🖥', 'Anzeige', 'Bildgröße der Kacheln'],
+        ['#/mypreferencesplayback', '▶', 'Wiedergabe', 'Tonsprache, nächste Folge'], ['#/mypreferencessubtitles', '💬', 'Untertitel', 'Wann und welche Untertitel, Größe']];
+      if (ADMIN) tiles.push(['#/dashboard', '⚒', 'Verwaltung', 'Benutzer, Bibliotheken, Plugins']);
+      paint(shell('settings', 'Einstellungen', '<h1 class="bmc-heading">Einstellungen</h1><p class="bmc-subtitle">Angemeldet als ' + esc(USER) + '.</p><div class="bmc-tiles">' +
+        tiles.map(function (x) { return '<button class="bmc-tile" data-go="' + esc(x[0]) + '"><span class="ico">' + x[1] + '</span><strong>' + esc(x[2]) + '</strong><span>' + esc(x[3]) + '</span></button>'; }).join('') +
+        '<button class="bmc-tile" data-act="logout"><span class="ico">⎋</span><strong>Abmelden</strong><span>Von diesem Gerät abmelden</span></button></div>'));
+      return;
+    }
+    if (sub === 'mypreferencesdisplay') {
+      var key = uid + '-cardSize', cur = ls(key, ls('cardSize', ''));
+      if (cur === 'normal' || cur === 'default') cur = '';
+      paint(shell('settings', TITLES[sub], back + '<h1 class="bmc-heading">Anzeige</h1><section class="bmc-dialog bmc-form">' +
+        field('Bildgröße', '<select class="bmc-select" id="bmcCs">' + opt(SIZES, cur) + '</select>', 'Wie groß die Kacheln auf Startseite und in den Bibliotheken sind. Gilt nur für dieses Gerät und wird sofort gespeichert.') + '</section>'));
+      document.getElementById('bmcCs').onchange = function (e) {
+        var v = e.target.value; lsSet(key, v === '' ? 'normal' : v);
+        var adj = { extrasmall: 3, smaller: 2, small: 1, '': 0, large: -1, larger: -2, extralarge: -3 }[v] || 0;
+        document.documentElement.style.setProperty('--bmc-cs', String(adj));
+        document.documentElement.classList.toggle('bmc-cs', adj !== 0);
+        toast('Gespeichert.');
+      };
+      return;
+    }
+    if (sub === 'userprofile') {
+      paint(shell('settings', TITLES[sub], back + '<h1 class="bmc-heading">Profil</h1><section class="bmc-dialog bmc-form">' +
+        field('Benutzername', '<input class="bmc-select" value="' + esc(USER) + '" disabled>') +
+        '<h2 class="bmc-section">Passwort ändern</h2>' +
+        field('Aktuelles Passwort', '<input class="bmc-select" type="password" id="pwOld" autocomplete="current-password">') +
+        field('Neues Passwort', '<input class="bmc-select" type="password" id="pwNew" autocomplete="new-password">', 'Mindestens 6 Zeichen.') +
+        field('Neues Passwort wiederholen', '<input class="bmc-select" type="password" id="pwNew2" autocomplete="new-password">') +
+        '<button class="bmc-action" data-act="savepw">Passwort speichern</button><p class="bmc-hint" id="pwMsg"></p></section>'));
+      return;
+    }
+    // Wiedergabe / Untertitel: Benutzer-Konfiguration vom Server
+    paint(shell('settings', TITLES[sub], back + '<h1 class="bmc-heading">' + TITLES[sub] + '</h1><p class="bmc-subtitle">Wird geladen …</p>'));
+    c.getUser(uid).then(function (u) {
+      if (t !== token) return;
+      var cfg = u.Configuration || {};
+      var body = back + '<h1 class="bmc-heading">' + TITLES[sub] + '</h1><section class="bmc-dialog bmc-form">';
+      if (sub === 'mypreferencesplayback') {
+        body += field('Bevorzugte Tonsprache', '<select class="bmc-select" data-cfg="AudioLanguagePreference">' + opt(LANGS, cfg.AudioLanguagePreference || '') + '</select>', 'Gibt es diese Sprache im Film, wird sie automatisch gewählt.') +
+          field('Standard-Tonspur', '<label class="bmc-check"><input type="checkbox" data-cfg="PlayDefaultAudioTrack"' + (cfg.PlayDefaultAudioTrack !== false ? ' checked' : '') + '> Die in der Datei als Standard markierte Tonspur abspielen, auch wenn sie eine andere Sprache hat</label>') +
+          field('Nächste Folge', '<label class="bmc-check"><input type="checkbox" data-cfg="EnableNextEpisodeAutoPlay"' + (cfg.EnableNextEpisodeAutoPlay !== false ? ' checked' : '') + '> Bei Serien die nächste Folge automatisch starten</label>') +
+          field('Auswahl merken', '<label class="bmc-check"><input type="checkbox" data-cfg="RememberAudioSelections"' + (cfg.RememberAudioSelections !== false ? ' checked' : '') + '> Gewählte Tonspur für die nächste Folge merken</label>');
+      } else {
+        body += field('Untertitel anzeigen', '<select class="bmc-select" data-cfg="SubtitleMode">' + opt(SUBMODES, cfg.SubtitleMode || 'Default') + '</select>') +
+          field('Bevorzugte Untertitelsprache', '<select class="bmc-select" data-cfg="SubtitleLanguagePreference">' + opt(LANGS, cfg.SubtitleLanguagePreference || '') + '</select>') +
+          field('Schriftgröße im Player', '<select class="bmc-select" id="bmcSubSize">' + opt(SUBSIZE, ls('bmc-play-subsize', '1')) + '</select>', 'Gilt nur für dieses Gerät.');
+      }
+      body += '<p class="bmc-hint" id="cfgMsg">Änderungen werden sofort gespeichert.</p></section>';
+      paint(shell('settings', TITLES[sub], body));
+      var ss = document.getElementById('bmcSubSize');
+      if (ss) ss.onchange = function () { lsSet('bmc-play-subsize', ss.value); toast('Gespeichert.'); };
+      Array.prototype.forEach.call(document.querySelectorAll('#bmcShell [data-cfg]'), function (el) {
+        el.onchange = function () {
+          var k = el.dataset.cfg;
+          cfg[k] = el.type === 'checkbox' ? el.checked : el.value;
+          if (k === 'EnableNextEpisodeAutoPlay') lsSet('bmc-play-autonext', el.checked ? '1' : '0');
+          c.updateUserConfiguration(uid, cfg).then(function () { toast('Gespeichert.'); }, function () { toast('Speichern fehlgeschlagen.'); });
+        };
+      });
+    }, function () { paint(shell('settings', TITLES[sub], back + '<p class="bmc-empty">Einstellungen konnten nicht geladen werden.</p>')); });
+  }
+  function savePw() {
+    var c = client(), a = document.getElementById('pwOld').value, b = document.getElementById('pwNew').value, b2 = document.getElementById('pwNew2').value, msg = document.getElementById('pwMsg');
+    if (b.length < 6) { msg.textContent = 'Das neue Passwort braucht mindestens 6 Zeichen.'; return; }
+    if (b !== b2) { msg.textContent = 'Die beiden neuen Passwörter sind nicht gleich.'; return; }
+    msg.textContent = 'Wird gespeichert …';
+    c.ajax({ type: 'POST', url: c.getUrl('Users/' + c.getCurrentUserId() + '/Password'), data: JSON.stringify({ CurrentPw: a, NewPw: b }), contentType: 'application/json' })
+      .then(function () { msg.textContent = 'Passwort geändert. Bitte melde dich mit dem neuen Passwort wieder an …'; setTimeout(logout, 2000); },
+        function () { msg.textContent = 'Das hat nicht geklappt – stimmt das aktuelle Passwort?'; });
+  }
+  function logout() {
+    var b = document.querySelector('.btnLogout');
+    if (b) { close(); b.click(); return; }
+    var c = client();
+    (c && c.logout ? c.logout() : Promise.resolve()).then(function () {}, function () {}).then(function () {
+      try { var cr = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}'); (cr.Servers || []).forEach(function (s) { delete s.AccessToken; delete s.UserId; }); localStorage.setItem('jellyfin_credentials', JSON.stringify(cr)); } catch (e) {}
+      location.href = '/web/#/login'; location.reload();
+    });
+  }
+  function toast(t) {
+    var el = document.getElementById('bmcToast');
+    if (!el) { el = document.createElement('div'); el.id = 'bmcToast'; el.className = 'bmc-toast'; root().appendChild(el); }
+    el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove('on'); }, 1800);
+  }
+
   /* ---------- Steuerung ---------- */
   function check() {
     clearTimeout(retry);
@@ -224,7 +367,10 @@
     var t = ++token;
     base(c).then(function () {
       if (t !== token) return;
-      if (r.page === 'home') home(c, t); else lib(c, r, t);
+      if (r.page === 'home') home(c, t);
+      else if (r.page === 'search') search(c, t);
+      else if (r.page === 'settings') settings(c, r, t);
+      else lib(c, r, t);
     });
   }
   window.addEventListener('hashchange', check);

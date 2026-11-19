@@ -277,6 +277,7 @@
 
   /* ---------- Start ---------- */
   if (!ID || !C.token) { status('Bitte zuerst im Media Center anmelden.', true); return; }
+  document.documentElement.style.setProperty('--subsize', load('subsize', '1'));
   var vol = parseFloat(load('vol', '1')); if (isFinite(vol)) { v.volume = vol; $('volume').value = vol; }
   api('/Users/' + C.user + '/Items/' + ID).then(function (it) {
     item = it;

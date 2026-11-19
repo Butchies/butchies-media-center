@@ -2,6 +2,15 @@
 
 Neueste zuerst.
 
+## 19.11.2026 – Butchies Media Center 3.12.0: Alles im eigenen Design
+- **Neue Oberfläche** nach dem eigenen Designsystem (Farben Mitternachtsblau): Seitenleiste mit Startseite, Bibliotheken, Suche, Einstellungen und Verwaltung; am Handy über ☰.
+- **Startseite:** großer Kasten mit dem Titel zum Weiterschauen, „Meine Medien“, „Weiterschauen“, „Nächste Folgen“, „Neu in …“.
+- **Bibliotheken:** alle Titel als Kacheln, Sortieren (Name, neu, Jahr, Bewertung, zuletzt gesehen), „Mehr laden“. Die Einstellung „Bildgröße“ gilt auch hier.
+- **Detailseiten** wie die eigene Film-Detailseite: Filme und Folgen (Übersicht, Darsteller, Extras, Kapitel, Ähnliche Titel, Medieninformationen), Serien und Staffeln (Reiter „Folgen“ mit Staffelwahl), Alben („Titel“), Sammlungen/Wiedergabelisten („Inhalt“), Personen und Künstler.
+- **Neuer Player** nach dem eigenen Player-Paket: Steuerleiste, Wiedergabeeinstellungen (Tempo, Tonspur, Untertitel, **Untertitel-Versatz**, **Autoplay**, Schlaftimer), Wiedergabeliste bzw. Kapitel, Kapitelmarken, Tastenkürzel. Alles, was abgespielt wird, läuft jetzt in diesem Player. Das NAS schickt die Originaldatei; nur mit dem Plugin „Browser-Hilfe“ wird der Ton umgepackt (z. B. Firefox + DTS/AC3, andere Tonspur). Kann der Browser etwas nicht, steht es sofort in Gelb unter dem Bild.
+- **Suche** und **Einstellungen** (Profil mit Passwort ändern, Anzeige, Wiedergabe, Untertitel inkl. Schriftgröße, Abmelden) im neuen Design. Die Verwaltung (Dashboard) sieht noch aus wie Jellyfin.
+- Sicherheit: Wer sein eigenes Passwort ändert, muss jetzt immer das aktuelle Passwort eingeben – auch Admins.
+
 ## 19.11.2026 – Butchies Media Center 3.11.1: Butchies-Designs entfernt
 - Die 6 Butchies-Designs (Aurora, Kinosaal Rot, Mitternachtsblau, OLED Schwarz, Smaragd, Sonnenuntergang) wurden wieder entfernt. Unter Einstellungen → Anzeige → Design stehen nur noch die Original-Designs von Jellyfin. Wer eines der Butchies-Designs eingestellt hatte, bekommt automatisch wieder das Standard-Design.
 

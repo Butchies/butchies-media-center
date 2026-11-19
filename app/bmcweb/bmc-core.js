@@ -84,6 +84,19 @@
     if (a !== undefined && a !== null && a !== '' && !isNaN(+a)) r.a = +a;
     return r;
   }
+  /* Alles, was in der Jellyfin-Oberfläche abgespielt wird, läuft im Butchies-Player (bmcweb/play) */
+  function ownPlayer(id, url, body) {
+    var q = {}, start = 0, sel = {};
+    try { new URL(url, location.href).searchParams.forEach(function (v, k) { q[k.toLowerCase()] = v; }); } catch (e) {}
+    var jb = {};
+    try { jb = typeof body === 'string' && body ? JSON.parse(body) : {}; } catch (e) {}
+    start = ((jb.StartTimeTicks || +q.starttimeticks || 0) / 1e7);
+    sel = pickIdx(url, jb);
+    var u = '/web/bmc/play/index.html?id=' + id + (start > 0 ? '&t=' + Math.floor(start) : '');
+    if (sel.a !== undefined) u += '&a=' + sel.a;
+    if (sel.s !== undefined) u += '&s=' + (sel.s < 0 ? 'off' : sel.s);
+    location.href = u;
+  }
   var pending = null, nativeFetch = window.fetch;
   if (!nativeFetch || window.__bmcFetch) return;
   window.__bmcFetch = true;
@@ -91,6 +104,12 @@
     var url = typeof input === 'string' ? input : (input && input.url) || '';
     var m = /\/Items\/([0-9a-f]{32})\/PlaybackInfo/i.exec(url);
     if (!m) return nativeFetch.apply(this, arguments);
+    if (window.bmcOwnPlayer !== false) {
+      var bp = (init && typeof init.body === 'string') ? Promise.resolve(init.body)
+        : (input && typeof input !== 'string' && input.clone) ? input.clone().text().catch(function () { return ''; }) : Promise.resolve('');
+      bp.then(function (b) { ownPlayer(m[1].toLowerCase(), url, b); });
+      return new Promise(function () {});   // Jellyfin-Player startet gar nicht erst
+    }
     var self = this, start = 0, sel = {};
     var bodyP = (init && typeof init.body === 'string') ? Promise.resolve(init.body)
       : (input && typeof input !== 'string' && input.clone) ? input.clone().text().catch(function () { return ''; }) : Promise.resolve('');
@@ -123,6 +142,7 @@
     return XO.apply(this, arguments);
   };
   XMLHttpRequest.prototype.send = function (body) {
+    if (this.__bmc && window.bmcOwnPlayer !== false) { ownPlayer(this.__bmc, this.__bmcUrl, body); return; }
     if (this.__bmc) {
       var id = this.__bmc, start = 0, x = this, sel = {};
       try { var jb = JSON.parse(body || '{}'); start = (jb.StartTimeTicks || 0) / 1e7; sel = pickIdx(x.__bmcUrl, jb); } catch (e) {}

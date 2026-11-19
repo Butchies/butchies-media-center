@@ -169,8 +169,11 @@ def route(h, method, path, p, q, user, sid):
         if d.get('ResetPassword'):
             return err(h, 'INVALID_CREDENTIALS')  # leeres Passwort gibt es hier nicht
         try:
-            if target[0] == user[0] and not admin and not acc.login(user[1], str(d.get('CurrentPw') or d.get('CurrentPassword') or '')[:256]):
-                raise ValueError('WRONG_PASSWORD')
+            if target[0] == user[0]:  # eigenes Passwort: immer das aktuelle Passwort prüfen (auch bei Admins)
+                tok = acc.login(user[1], str(d.get('CurrentPw') or d.get('CurrentPassword') or '')[:256])
+                if not tok:
+                    raise ValueError('WRONG_PASSWORD')
+                acc.logout(tok)  # Prüf-Sitzung gleich wieder entfernen
             acc.set_password(target[0], str(d.get('NewPw') or '')[:256])
         except ValueError as e:
             return err(h, str(e))

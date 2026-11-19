@@ -6,9 +6,9 @@
 (function () {
   'use strict';
   var VIDEO = { Movie: 1, Episode: 1, Video: 1, MusicVideo: 1, Trailer: 1 };
-  var KIND = { Series: 'series', Season: 'series', MusicAlbum: 'album', BoxSet: 'folder', Playlist: 'folder' };
+  var KIND = { Series: 'series', Season: 'series', MusicAlbum: 'album', BoxSet: 'folder', Playlist: 'folder', Person: 'person', MusicArtist: 'person' };
   var EYEBROW = { Movie: 'FILMDETAILS', Episode: 'FOLGE', Video: 'VIDEO', MusicVideo: 'MUSIKVIDEO', Trailer: 'TRAILER', Series: 'SERIENDETAILS',
-    Season: 'STAFFEL', MusicAlbum: 'ALBUM', BoxSet: 'SAMMLUNG', Playlist: 'WIEDERGABELISTE' };
+    Season: 'STAFFEL', MusicAlbum: 'ALBUM', BoxSet: 'SAMMLUNG', Playlist: 'WIEDERGABELISTE', Person: 'PERSON', MusicArtist: 'KÜNSTLER' };
   var S = null;
   var loading = null, timer = null;
 
@@ -102,7 +102,7 @@
       if (!kind) { S = { id: id, skip: true }; close(); return; }
       var st = { id: id, item: it, kind: kind, m: info(it), similar: [], extras: [], trailers: [], admin: false, views: [],
                  seasons: [], season: null, episodes: null, next: null, children: null,
-                 tab: kind === 'series' ? 'Folgen' : kind === 'album' ? 'Titel' : kind === 'folder' ? 'Inhalt' : 'Übersicht', menu: false, expanded: false };
+                 tab: kind === 'series' ? 'Folgen' : kind === 'album' ? 'Titel' : kind === 'folder' ? 'Inhalt' : kind === 'person' ? (it.Type === 'MusicArtist' ? 'Alben' : 'Filme & Serien') : 'Übersicht', menu: false, expanded: false };
       S = st; render();
       var jobs = [
         c.getCurrentUser().then(function (u) { st.admin = !!(u.Policy && u.Policy.IsAdministrator); }, function () {}),
@@ -123,6 +123,11 @@
           if (it.Type === 'Season') st.season = id;
         }, function () {}));
         jobs.push(c.getNextUpEpisodes({ userId: uid, SeriesId: sid, Limit: 1, Fields: 'PrimaryImageAspectRatio' }).then(function (r) { st.next = (r.Items || [])[0] || null; }, function () {}));
+      }
+      if (kind === 'person') {
+        var po = { Recursive: true, SortBy: 'ProductionYear,SortName', SortOrder: 'Descending', Fields: 'PrimaryImageAspectRatio,ProductionYear', EnableImageTypes: 'Primary' };
+        if (it.Type === 'MusicArtist') { po.ArtistIds = id; po.IncludeItemTypes = 'MusicAlbum'; } else { po.PersonIds = id; po.IncludeItemTypes = 'Movie,Series'; }
+        jobs.push(c.getItems(uid, po).then(function (r) { st.children = r.Items || []; }, function () { st.children = []; }));
       }
       if (kind === 'album' || kind === 'folder') {
         var o = { ParentId: id, Fields: 'PrimaryImageAspectRatio,ProductionYear,MediaSources', EnableImageTypes: 'Primary,Backdrop,Thumb' };
@@ -175,6 +180,7 @@
     var m = S.m, k = S.kind;
     var all = k === 'series' ? ['Folgen', 'Übersicht', 'Darsteller', 'Ähnliche Titel']
       : k === 'album' ? ['Titel', 'Übersicht'] : k === 'folder' ? ['Inhalt', 'Übersicht']
+      : k === 'person' ? [S.item.Type === 'MusicArtist' ? 'Alben' : 'Filme & Serien', 'Übersicht']
       : ['Übersicht', 'Darsteller', 'Extras', 'Kapitel', 'Ähnliche Titel', 'Medieninformationen'];
     return all.filter(function (t) {
       if (t === 'Darsteller') return m.people.length;
@@ -215,6 +221,7 @@
     var m = S.m, tab = S.tab;
     if (tab === 'Folgen') return seasonSelect() + episodeList();
     if (tab === 'Titel') return trackList();
+    if (tab === 'Filme & Serien' || tab === 'Alben') return S.children === null ? '<p class="empty">Wird geladen …</p>' : (S.children.length ? cards(itemCards(S.children), 'child') : '<p class="empty">Keine Titel in deiner Mediathek.</p>');
     if (tab === 'Inhalt') return S.children === null ? '<p class="empty">Wird geladen …</p>' : (S.children.length ? cards(itemCards(S.children), 'child') : '<p class="empty">Noch leer.</p>');
     if (tab === 'Darsteller') return cards(m.people, 'person');
     if (tab === 'Extras') return cards(extraCards(), 'extra');
@@ -254,6 +261,9 @@
     if (it.Type === 'Episode' && it.ParentIndexNumber != null) parts.push('Staffel ' + it.ParentIndexNumber + ', Folge ' + (it.IndexNumber != null ? it.IndexNumber : '?'));
     if (m.year) parts.push(m.year);
     if (S.kind === 'series' && it.Type === 'Series' && S.seasons.length) parts.push(S.seasons.length + (S.seasons.length === 1 ? ' Staffel' : ' Staffeln'));
+    if (it.Type === 'Person' && it.PremiereDate) parts.push('geboren ' + new Date(it.PremiereDate).toLocaleDateString('de-DE') + (it.EndDate ? ', gestorben ' + new Date(it.EndDate).toLocaleDateString('de-DE') : ''));
+    if (it.Type === 'Person' && (it.ProductionLocations || []).length) parts.push(it.ProductionLocations[0]);
+    if (S.kind === 'person' && S.children && S.children.length) parts.push(S.children.length + (it.Type === 'MusicArtist' ? ' Alben' : ' Titel in deiner Mediathek'));
     if (S.kind === 'album' && it.AlbumArtist) parts.unshift(it.AlbumArtist);
     if ((S.kind === 'album' || S.kind === 'folder') && S.children && S.children.length) parts.push(S.children.length + (S.kind === 'album' ? ' Titel' : ' Einträge'));
     if (m.runtimeMinutes) parts.push(m.runtimeMinutes + ' Minuten');
@@ -273,7 +283,7 @@
       var n = S.next, first = S.episodes && S.episodes[0];
       if (n) h += '<button class="primary" data-action="next">▶ ' + esc(S.item.Type === 'Series' && n.ParentIndexNumber != null ? 'S' + n.ParentIndexNumber + ':F' + n.IndexNumber + ' ansehen' : 'Weiterschauen') + '</button>';
       else if (first) h += '<button class="primary" data-action="first">▶ Abspielen</button>';
-    } else if (S.children && S.children.length) {
+    } else if (k !== 'person' && S.children && S.children.length) {
       h += '<button class="primary" data-action="first">▶ ' + (k === 'album' ? 'Alle abspielen' : 'Abspielen') + '</button>';
     }
     if (S.item.Type !== 'Playlist') h += '<button class="secondary ' + (m.isFavorite ? 'active' : '') + '" data-action="favorite">' + (m.isFavorite ? '♥ Favorit' : '♡ Favorit') + '</button>';
@@ -310,8 +320,8 @@
     var tabs = tabsFor(); if (tabs.indexOf(S.tab) < 0) S.tab = tabs[0];
     var long = m.overview.length > 155;
     var menuItems = [];
-    if (S.admin && it.Type !== 'BoxSet' && it.Type !== 'Playlist') menuItems.push(['addtocollection', 'Zur Sammlung hinzufügen']);
-    if (it.Type !== 'Playlist') menuItems.push(['addtoplaylist', 'Zur Wiedergabeliste']);
+    if (S.admin && it.Type !== 'BoxSet' && it.Type !== 'Playlist' && S.kind !== 'person') menuItems.push(['addtocollection', 'Zur Sammlung hinzufügen']);
+    if (it.Type !== 'Playlist' && S.kind !== 'person') menuItems.push(['addtoplaylist', 'Zur Wiedergabeliste']);
     if (S.admin) { menuItems.push(['editimages', 'Bilder bearbeiten']); menuItems.push(['edit', 'Metadaten bearbeiten']); }
     if (S.admin && (it.Type === 'Movie' || it.Type === 'Series')) menuItems.push(['identify', 'Identifizieren']);
     if (m.canDownload) menuItems.push(['download', 'Herunterladen']);
@@ -322,7 +332,7 @@
       '<button class="ghost" data-route="home">⌂ Start</button>' + (lib ? '<button class="ghost" data-route="lib">' + esc(lib.Name) + '</button>' : '') +
       '<button class="ghost" data-route="search">⌕ Suche</button><button class="ghost" data-action="menu">⋯</button></nav></header>' +
       (S.menu ? '<div class="menu">' + menuItems.map(function (x) { return '<button data-menu="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>' : '') +
-      '<main><section class="hero"><div class="poster' + (m.square ? ' square' : '') + '" aria-label="Bild"' + thumbStyle(m.poster) + '>' + (m.poster ? '' : (S.kind === 'album' ? '🎵' : '🎬')) + '</div><div><div class="eyebrow">' + esc(eyebrow) + '</div><h1>' + esc(title) + '</h1><div class="meta">' +
+      '<main><section class="hero"><div class="poster' + (m.square ? ' square' : '') + '" aria-label="Bild"' + thumbStyle(m.poster) + '>' + (m.poster ? '' : (S.kind === 'album' ? '🎵' : S.kind === 'person' ? '👤' : '🎬')) + '</div><div><div class="eyebrow">' + esc(eyebrow) + '</div><h1>' + esc(title) + '</h1><div class="meta">' +
       metaHtml() + '</div>' +
       (m.tagline ? '<p class="tagline">' + esc(m.tagline) + '</p>' : '') +
       '<div class="actions">' + actionsHtml() + '</div>' +

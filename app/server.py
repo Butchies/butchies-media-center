@@ -17,7 +17,7 @@ TLS_KEY=os.environ.get('BMC_TLS_KEY','')
 SETUP_CODE_FILE=Path(os.environ.get('BMC_SETUP_CODE_FILE',str(MEDIA/'Butchies_Media_Center_Einrichtungscode.txt')))
 setup_code_hash=None
 setup_lock=threading.Lock()
-VERSION='3.11.1'
+VERSION='3.12.0'
 # Explicit host allowlist for a future trusted TLS reverse proxy.
 # Empty by default: no LAN hostname is trusted implicitly.
 EXTRA_HOSTS=frozenset(x.strip().lower() for x in os.environ.get('BMC_ALLOWED_HOSTS','').split(',') if x.strip())
