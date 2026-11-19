@@ -1,0 +1,38 @@
+/* Butchies Media Center: Einstellung „Bildgröße“ (Kachelgröße, pro Gerät).
+   Eigene Umsetzung. Breite = Fläche / max(Grundzahl + Anpassung, Mindestanzahl).
+   Die Grundzahlen bilden die Breiten der Jellyfin-Oberfläche je Bildschirmbreite exakt nach,
+   bei Anpassung 0 ändert sich also nichts. --bmc-cs: +3 (Extra klein) … -3 (Extra groß). */
+:root{
+  --bmc-cs:0;
+  /* Raster (senkrecht): Karten pro Reihe */
+  --bmc-n-portrait:3;--bmc-n-square:2;--bmc-n-backdrop:1;--bmc-n-smallbackdrop:2;--bmc-n-banner:1;
+  /* Leisten (waagerecht): Karten pro 93vw */
+  --bmc-o-portrait:2.325;--bmc-o-square:2.325;--bmc-o-backdrop:1.2917;--bmc-o-smallbackdrop:1.2917;
+}
+@media (min-width:25em){:root{--bmc-n-backdrop:2;--bmc-o-portrait:2.9808}}
+@media (min-width:31.25em){:root{--bmc-n-portrait:3;--bmc-n-smallbackdrop:3;--bmc-n-square:3}}
+@media (min-width:35em){:root{--bmc-o-square:2.9808;--bmc-o-backdrop:2.044;--bmc-o-smallbackdrop:3.1}}
+@media (min-width:43.75em){:root{--bmc-n-portrait:4;--bmc-n-square:4;--bmc-o-portrait:4.026;--bmc-o-square:4.026}}
+@media (min-width:48.125em){:root{--bmc-n-backdrop:3;--bmc-o-backdrop:3.1;--bmc-o-smallbackdrop:3.1}}
+@media (orientation:landscape){:root{--bmc-o-backdrop:3.1;--bmc-o-smallbackdrop:3.1;--bmc-o-portrait:4.026;--bmc-o-square:4.026}}
+@media (orientation:landscape) and (min-width:48.125em){:root{--bmc-o-backdrop:4.026;--bmc-o-smallbackdrop:4.026}}
+@media (orientation:landscape) and (min-width:50em){:root{--bmc-o-smallbackdrop:6}}
+@media (min-width:50em){:root{--bmc-n-banner:2;--bmc-n-portrait:5;--bmc-n-square:5;--bmc-o-portrait:5.027;--bmc-o-square:5.027}}
+@media (min-width:75em){:root{--bmc-n-backdrop:4;--bmc-n-portrait:6;--bmc-n-square:6;--bmc-n-banner:3;--bmc-o-backdrop:4.026;--bmc-o-smallbackdrop:4.026;--bmc-o-portrait:6;--bmc-o-square:6}}
+@media (min-width:87.5em){:root{--bmc-n-portrait:7;--bmc-n-smallbackdrop:7;--bmc-n-square:7;--bmc-o-portrait:6.9925;--bmc-o-square:6.9925}}
+@media (min-width:100em){:root{--bmc-n-smallbackdrop:8;--bmc-n-backdrop:5;--bmc-n-portrait:8;--bmc-n-square:8;--bmc-o-backdrop:4.9733;--bmc-o-smallbackdrop:4.9733;--bmc-o-portrait:8.0172;--bmc-o-square:8.0172}}
+@media (min-width:120em){:root{--bmc-n-portrait:9;--bmc-n-square:9;--bmc-o-portrait:8.9337;--bmc-o-square:8.9337}}
+@media (min-width:131.25em){:root{--bmc-n-banner:4;--bmc-n-portrait:10;--bmc-n-square:10;--bmc-o-portrait:10;--bmc-o-square:10}}
+@media (min-width:156.25em){:root{--bmc-n-backdrop:6;--bmc-o-backdrop:5.9615;--bmc-o-smallbackdrop:5.9615}}
+
+/* Nur aktiv, wenn nicht „Standard“ gewählt ist (Klasse bmc-cs am <html>). */
+html.bmc-cs .portraitCard{width:calc(100% / max(var(--bmc-n-portrait) + var(--bmc-cs), 3))}
+html.bmc-cs .squareCard{width:calc(100% / max(var(--bmc-n-square) + var(--bmc-cs), 2))}
+html.bmc-cs .backdropCard{width:calc(100% / max(var(--bmc-n-backdrop) + var(--bmc-cs), 1))}
+html.bmc-cs .smallBackdropCard{width:calc(100% / max(var(--bmc-n-smallbackdrop) + var(--bmc-cs), 2))}
+html.bmc-cs .bannerCard{width:calc(100% / max(var(--bmc-n-banner) + var(--bmc-cs), 1))}
+html.bmc-cs .overflowPortraitCard{width:calc(93vw / max(var(--bmc-o-portrait) + var(--bmc-cs), 2.325))}
+html.bmc-cs .overflowSquareCard{width:calc(93vw / max(var(--bmc-o-square) + var(--bmc-cs), 2.325))}
+html.bmc-cs .overflowBackdropCard{width:calc(93vw / max(var(--bmc-o-backdrop) + var(--bmc-cs), 1.2917))}
+html.bmc-cs .overflowSmallBackdropCard{width:calc(93vw / max(var(--bmc-o-smallbackdrop) + var(--bmc-cs), 1.2917))}
+html.bmc-cs .overflowBackdropCard-textCard{width:calc(93vw / max(6 + var(--bmc-cs), 1.2917))!important}

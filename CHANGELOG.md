@@ -2,6 +2,11 @@
 
 Neueste zuerst.
 
+## 19.11.2026 – Butchies Media Center 3.9.7: Bildgröße
+- Neue Einstellung **Bildgröße** unter Einstellungen → Anzeige (unter „Anzeigemodus“): Extra klein, Kleiner, Klein, Standard, Groß, Größer, Extra groß. Wird sofort und nur für dieses Gerät gespeichert. Ein Wechsel des Anzeigemodus setzt sie auf Standard zurück.
+- Berechnung: Kachelbreite = Fläche / max(Grundzahl + Anpassung, Mindestanzahl); Mindestanzahl Poster 3, Quadrat 2, Querformat/Banner 1. „Standard“ entspricht genau der bisherigen Größe.
+- Startseite: Bildformate werden an die Oberfläche gemeldet (Bilder füllen die Kacheln), Kachelformen nach Bildformat (`bmc-artwork`), Designvorschau `preview/index.html`.
+
 ## 19.11.2026 – Butchies Media Center 3.9.6: eigenes GitHub-Projekt
 - Alle Dateien der App liegen jetzt einzeln in diesem Projekt; GitHub baut die .bin automatisch (Releases).
 - Keine automatische Bibliothek „Mediathek“ über den ganzen Public-Ordner mehr (stammte aus der alten App 1.0.35). Welche Ordner freigegeben werden, bestimmt nur der Nutzer selbst (Dashboard → Bibliotheken).
