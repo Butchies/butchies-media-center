@@ -1,0 +1,31 @@
+# Baut bei jeder Änderung an app/ oder build.sh automatisch die WD-App-Datei (.bin)
+# und legt sie als neue Version unter „Releases“ ab. Kann auch per Hand gestartet werden (Actions → Run workflow).
+name: WD-App bauen
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'build.sh', '.github/workflows/build.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: .bin bauen
+        id: b
+        run: |
+          OUT=$(sh build.sh | tail -n1)
+          VER=$(sed -n 's/^Version:[[:space:]]*//p' app/apkg.rc)
+          (cd dist && sha256sum "$(basename "$OUT")" > "$(basename "$OUT").sha256")
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+      - name: Als Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.b.outputs.ver }}-$(date -u +%Y%m%d-%H%M)"
+          git log -1 --pretty=%B > notes.txt
+          gh release create "$TAG" "${{ steps.b.outputs.file }}" "${{ steps.b.outputs.file }}.sha256" \
+            --title "Butchies Media Center ${{ steps.b.outputs.ver }}" --notes-file notes.txt

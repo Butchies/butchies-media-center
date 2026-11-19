@@ -1,0 +1,74 @@
+/* Aussehen bewusst wie der Jellyfin-Player im Browser, damit der Wechsel nicht auffällt. */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:rgba(255,255,255,.87);font-family:"Noto Sans","Noto Sans HK","Noto Sans JP","Noto Sans KR","Noto Sans SC","Noto Sans TC",system-ui,sans-serif;
+  overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+#stage{position:fixed;inset:0;background:#000;touch-action:manipulation}
+#screen,#pgs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%}
+#pgs{pointer-events:none}
+#subs{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;color:#fff;font-size:clamp(17px,3.1vw,38px);line-height:1.35;
+  text-shadow:#000 0 0 4px,#000 0 0 7px;white-space:pre-line;pointer-events:none}
+/* Ladekreis wie Jellyfin */
+#spinner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none}
+#spinner[hidden]{display:none}
+.ring{width:4em;height:4em;border-radius:50%;border:.36em solid transparent;border-top-color:#00a4dc;border-left-color:#00a4dc;animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#spinText{font-size:14px;opacity:.7;text-align:center;max-width:80vw}
+#spinText:empty{display:none}
+#soundHint{position:absolute;left:50%;top:max(4.5em,8vh);transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:.5em;
+  background:rgba(0,0,0,.65);color:#fff;border:0;border-radius:2em;padding:.55em 1.1em;font:inherit;font-size:14px;cursor:pointer}
+#soundHint svg{width:1.4em;height:1.4em;fill:currentColor}
+#soundHint[hidden]{display:none}
+#toast{position:absolute;left:50%;bottom:7.5em;transform:translateX(-50%);z-index:4;background:rgba(0,0,0,.75);color:#fff;border-radius:.3em;
+  padding:.7em 1.2em;font-size:14px;max-width:90vw;text-align:center;pointer-events:none}
+#toast[hidden]{display:none}
+/* Fehlerfenster wie Jellyfin */
+#error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#101010;z-index:6}
+#error[hidden]{display:none}
+#error .box{max-width:min(92vw,28em);text-align:center;line-height:1.45}
+#error h2{font-weight:400;font-size:1.8em;margin:0 0 .8em}
+#error button{margin-top:1.4em;background:#00a4dc;color:#fff;border:0;border-radius:.2em;padding:.9em 1.9em;font:inherit;font-weight:600;cursor:pointer}
+/* Bedienleisten */
+#ui{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;opacity:0;transition:opacity .3s ease-out;pointer-events:none}
+body.ui-on #ui{opacity:1}
+body.ui-on .top,body.ui-on .bottom{pointer-events:auto}
+body:not(.ui-on){cursor:none}
+.top{display:flex;align-items:center;gap:.4em;padding:max(.3em,env(safe-area-inset-top)) .5em 2.5em;background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0))}
+.ttl{flex:1;min-width:0;padding-left:.3em}
+#title{font-size:1.15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+#sub{font-size:.85em;opacity:.7}
+#sub:empty{display:none}
+.bottom{padding:2.5em 1em max(.6em,env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.7))}
+.bar{display:flex;align-items:center;gap:.9em;font-size:.9em}
+.bar span{min-width:3.6em;text-align:center;font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:.1em;margin-top:.3em}
+.sp{flex:1}
+#endsAt{margin-left:1.2em;font-size:.9em;opacity:.9;white-space:nowrap}
+.ic{background:none;border:0;color:#fff;width:2.8em;height:2.8em;border-radius:50%;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:.5em;flex-shrink:0}
+.ic:hover{background:rgba(255,255,255,.12)}
+.ic svg{width:100%;height:100%;fill:currentColor}
+.ic[hidden]{display:none}
+#fav.on{color:#cc3333}
+/* Schieberegler wie Jellyfin (dünn, blau) */
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;height:1.6em;margin:0;min-width:0}
+input[type=range]::-webkit-slider-runnable-track{height:.25em;border-radius:.15em;background:linear-gradient(#00a4dc,#00a4dc) 0/var(--p,0%) 100% no-repeat,rgba(255,255,255,.3)}
+input[type=range]::-moz-range-track{height:.25em;border-radius:.15em;background:rgba(255,255,255,.3)}
+input[type=range]::-moz-range-progress{height:.25em;border-radius:.15em;background:#00a4dc}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1.08em;height:1.08em;border-radius:50%;background:#00a4dc;border:0;margin-top:-.42em}
+input[type=range]::-moz-range-thumb{width:1.08em;height:1.08em;border-radius:50%;background:#00a4dc;border:0}
+#seek{flex:1}
+#vol{width:7em;margin:0 .4em}
+/* Auswahlmenü (Ton/Untertitel) wie die Jellyfin-Aktionsliste */
+#menu{position:absolute;inset:0;z-index:5;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 1em 6em}
+#menu[hidden]{display:none}
+#menu .list{background:#202020;border-radius:.3em;min-width:14em;max-width:min(92vw,26em);max-height:60vh;overflow:auto;padding:.4em 0;box-shadow:0 .3em 1.2em rgba(0,0,0,.6)}
+#menu .it{display:flex;align-items:center;gap:.8em;width:100%;background:none;border:0;color:#fff;font:inherit;text-align:left;padding:.75em 1.2em;cursor:pointer}
+#menu .it:hover,#menu .it:focus{background:rgba(255,255,255,.1);outline:0}
+#menu .chk{width:1.2em;color:#00a4dc;font-weight:700;flex-shrink:0}
+#menu .hd{padding:.6em 1.2em .3em;font-size:.85em;opacity:.6}
+@media (max-width:600px){
+  #vol,#endsAt{display:none}
+  .ic{width:2.6em;height:2.6em}
+  .bottom{padding-left:.4em;padding-right:.4em}
+  .bar{gap:.4em}
+  #menu{justify-content:center;padding-bottom:5em}
+}

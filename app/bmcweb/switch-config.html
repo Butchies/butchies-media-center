@@ -1,0 +1,32 @@
+<div id="bmcSwitchPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button,emby-checkbox">
+  <div data-role="content">
+    <div class="content-primary">
+      <form id="bmcSwitchForm">
+        <div class="verticalSection">
+          <h2 class="sectionTitle">@@TITLE@@</h2>
+          <p>@@TEXT@@</p>
+        </div>
+        <div class="checkboxContainer">
+          <label><input is="emby-checkbox" type="checkbox" id="bmcSwitchOn" /><span>@@LABEL@@</span></label>
+        </div>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Speichern</span></button>
+      </form>
+    </div>
+  </div>
+  <script type="text/javascript">
+  (function () {
+    var ID = '@@ID@@';
+    var page = document.querySelector('#bmcSwitchPage');
+    function msg(t) { if (window.Dashboard && Dashboard.alert) Dashboard.alert(t); else alert(t); }
+    function load() { ApiClient.getPluginConfiguration(ID).then(function (c) { page.querySelector('#bmcSwitchOn').checked = !!c.Enabled; }); }
+    page.addEventListener('pageshow', load);
+    page.querySelector('#bmcSwitchForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      ApiClient.updatePluginConfiguration(ID, { Enabled: page.querySelector('#bmcSwitchOn').checked })
+        .then(function () { msg('Gespeichert. @@AFTER@@'); load(); }, function () { msg('Speichern fehlgeschlagen.'); });
+      return false;
+    });
+    if (document.contains(page)) load();
+  })();
+  </script>
+</div>
