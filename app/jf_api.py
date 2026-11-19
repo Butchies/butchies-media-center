@@ -14,6 +14,7 @@ import jf_subs
 import jf_meta
 import jf_ws
 import jf_playlists
+import jf_images
 import sys as _sys
 
 S = None  # das server-Modul (wird in setup() gesetzt)
@@ -37,8 +38,12 @@ def setup(server_module):
         if 'logo' not in {r[1] for r in c.execute('PRAGMA table_info(jf_probe)')}:
             c.execute('ALTER TABLE jf_probe ADD COLUMN logo TEXT')
             c.execute('DELETE FROM jf_probe')  # einmal neu einlesen, damit Logos gefunden werden
+        if 'extra' not in {r[1] for r in c.execute('PRAGMA table_info(jf_probe)')}:
+            c.execute('ALTER TABLE jf_probe ADD COLUMN extra TEXT')
+            c.execute('DELETE FROM jf_probe')  # einmal genau neu einlesen (Bildrate, HDR, Kapitel, Kanäle)
     threading.Thread(target=_probe_loop, daemon=True).start()
     jf_meta.setup(server_module, _sys.modules[__name__])
+    jf_images.setup(server_module, _sys.modules[__name__], jf_meta)
     jf_playlists.setup(server_module, _sys.modules[__name__])
     if 'wizard_done' not in jf_settings() and S.accounts.count():
         save_setting('wizard_done', True)  # bestehende Installation: Einrichtung gilt als erledigt
@@ -70,6 +75,106 @@ def find_logo(path):
     return None
 
 
+def ffprobe_bin():
+    for c in (S.ROOT / 'bin' / 'ffprobe', Path('/usr/bin/ffprobe'), Path('/usr/local/bin/ffprobe')):
+        if c.is_file() and os.access(str(c), os.X_OK):
+            return str(c)
+    return None
+
+
+def _fps(v):
+    try:
+        a, b = str(v or '0/0').split('/')
+        return round(int(a) / int(b), 3) if int(b) else None
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def _hdr(st):
+    """VideoRangeType wie Jellyfin: SDR, HDR10, HDR10Plus, HLG, DOVI, DOVIWithHDR10, DOVIWithHLG"""
+    tr = st.get('color_transfer') or ''
+    side = [x.get('side_data_type', '') for x in st.get('side_data_list') or []]
+    dovi = any('DOVI' in x or 'Dolby Vision' in x for x in side)
+    plus = any('HDR10+' in x or 'HDR Dynamic Metadata SMPTE2094-40' in x for x in side)
+    if dovi:
+        return 'DOVIWithHDR10' if tr == 'smpte2084' else 'DOVIWithHLG' if tr == 'arib-std-b67' else 'DOVI'
+    if tr == 'smpte2084':
+        return 'HDR10Plus' if plus else 'HDR10'
+    if tr == 'arib-std-b67':
+        return 'HLG'
+    return 'SDR'
+
+
+def ffprobe_details(path):
+    """Genaue Technikdaten (Bildrate, HDR, Bit-Tiefe, Kanäle, Kapitel …) über das mitgelieferte ffprobe.
+    Liest nur den Dateikopf – geht auch auf dem NAS schnell. None, wenn ffprobe fehlt oder scheitert."""
+    fp = ffprobe_bin()
+    if not fp:
+        return None
+    import subprocess
+    try:
+        r = subprocess.run([fp, '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', '-show_chapters',
+                            '-probesize', '10M', '-analyzeduration', '5M', str(path)],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=40)
+        x = json.loads(r.stdout.decode('utf-8', 'replace') or '{}')
+    except Exception:
+        return None
+    if not x.get('streams'):
+        return None
+    out = {'streams': [], 'chapters': [], 'bitrate': None, 'duration': None}
+    fmt = x.get('format') or {}
+    try:
+        out['duration'] = float(fmt['duration'])
+    except (KeyError, ValueError, TypeError):
+        pass
+    try:
+        out['bitrate'] = int(fmt['bit_rate'])
+    except (KeyError, ValueError, TypeError):
+        pass
+    for st in x['streams'][:60]:
+        tags = {k.lower(): v for k, v in (st.get('tags') or {}).items()}
+        disp = st.get('disposition') or {}
+        ct = st.get('codec_type')
+        typ = {'video': 'Video', 'audio': 'Audio', 'subtitle': 'Subtitle', 'attachment': 'Attachment'}.get(ct, 'Data')
+        if typ == 'Video' and disp.get('attached_pic'):
+            typ = 'EmbeddedImage'
+        d = {'type': typ, 'codec': (st.get('codec_name') or '').lower(), 'language': (tags.get('language') or 'und')[:8],
+             'title': str(tags.get('title') or '')[:120], 'default': bool(disp.get('default')), 'forced': bool(disp.get('forced')),
+             'sdh': bool(disp.get('hearing_impaired'))}
+        if st.get('profile'):
+            d['profile'] = str(st['profile'])[:40]
+        try:
+            br = int(st.get('bit_rate') or tags.get('bps') or tags.get('bps-eng') or 0)
+            if br:
+                d['bitrate'] = br
+        except (ValueError, TypeError):
+            pass
+        if typ == 'Video':
+            pf = st.get('pix_fmt') or ''
+            bd = st.get('bits_per_raw_sample')
+            d.update(width=st.get('width'), height=st.get('height'), fps=_fps(st.get('r_frame_rate')),
+                     avg_fps=_fps(st.get('avg_frame_rate')), pix_fmt=pf, level=st.get('level'),
+                     bit_depth=int(bd) if str(bd or '').isdigit() else (10 if '10' in pf else 12 if '12' in pf else 8),
+                     range=_hdr(st), color_transfer=st.get('color_transfer'), color_primaries=st.get('color_primaries'),
+                     color_space=st.get('color_space'), aspect=st.get('display_aspect_ratio'),
+                     interlaced=(st.get('field_order') or 'progressive') not in ('progressive', 'unknown'))
+        elif typ == 'Audio':
+            try:
+                sr = int(st.get('sample_rate') or 0)
+            except ValueError:
+                sr = 0
+            d.update(channels=st.get('channels'), layout=st.get('channel_layout'), sample_rate=sr or None)
+        out['streams'].append(d)
+    for i, c in enumerate(x.get('chapters') or []):
+        try:
+            start = float(c.get('start_time'))
+        except (TypeError, ValueError):
+            continue
+        name = str(((c.get('tags') or {}).get('title')) or '').strip()[:120]
+        out['chapters'].append({'start': round(start, 3), 'name': name or 'Kapitel %d' % (i + 1)})
+    return out
+
+
 def _probe_loop():
     """Liest im Hintergrund Laufzeit und Tonspuren aus den Dateien (ohne ffprobe, sparsam für das NAS)."""
     import videoinfo
@@ -81,10 +186,16 @@ def _probe_loop():
                                  'WHERE p.media_id IS NULL OR p.mtime_ns!=COALESCE(m.mtime_ns,0) LIMIT 50').fetchall()
             for mid, path, mt in todo:
                 info = videoinfo.details(path)
+                full = ffprobe_details(path)
+                extra = None
+                if full:
+                    info['streams'] = full['streams']
+                    info['duration'] = full['duration'] or info['duration']
+                    extra = json.dumps({'chapters': full['chapters'][:200], 'bitrate': full['bitrate']})
                 logo = find_logo(path)
                 with S.sqlite_session(S.DATA / 'library.sqlite') as c:
-                    c.execute('INSERT OR REPLACE INTO jf_probe(media_id,mtime_ns,duration,streams,logo) VALUES(?,?,?,?,?)',
-                              (mid, mt, info['duration'], json.dumps(info['streams']), logo))
+                    c.execute('INSERT OR REPLACE INTO jf_probe(media_id,mtime_ns,duration,streams,logo,extra) VALUES(?,?,?,?,?,?)',
+                              (mid, mt, info['duration'], json.dumps(info['streams']), logo, extra))
                 time.sleep(0.2)
             if todo:
                 invalidate()
@@ -173,7 +284,7 @@ def catalog():
             "SELECT m.id,m.path,COALESCE(NULLIF(d.custom_title,''),m.title) AS title,(COALESCE(d.custom_title,'')!='') AS custom,m.kind,m.bytes,m.width,m.height,"
             "COALESCE(d.description,'') AS description,d.year,COALESCE(d.genre,'') AS genre,d.rating,m.cover_path,"
             "COALESCE(m.cover_ns,0) AS cover_ns,COALESCE(m.mtime_ns,0) AS mtime_ns,m.library_id,l.category AS library_category,"
-            "pr.duration AS duration,pr.streams AS streams,pr.logo AS logo "
+            "pr.duration AS duration,pr.streams AS streams,pr.logo AS logo,pr.extra AS extra "
             "FROM media m JOIN libraries l ON l.id=m.library_id AND l.enabled=1 LEFT JOIN media_details d ON d.media_id=m.id "
             "LEFT JOIN jf_probe pr ON pr.media_id=m.id")]
         folders = {}
@@ -203,6 +314,7 @@ def catalog():
             'date': (x['mtime_ns'] or 0) / 1e9, 'container': ext, 'width': x['width'], 'height': x['height'], 'bytes': x['bytes'],
             'kind': x['kind'], 'folder': False, 'parent': lib_of(lid), 'duration': x['duration'],
             'streams': json.loads(x['streams']) if x['streams'] else None,
+            'extra': json.loads(x['extra']) if x.get('extra') else None,
             'logo': x['logo'], 'logo_tag': ('%x' % (x['mtime_ns'] or 1))[-10:] + 'l' if x['logo'] else None,
         }
         if x['category'] == 'music':
@@ -299,12 +411,39 @@ def invalidate():
 
 
 # ---------------------------------------------------------------- Benutzerdaten
-def user_state(user_id):
+class UState(tuple):
+    """(fortschritt, favoriten) + .dl = darf herunterladen"""
+    dl = False
+
+
+def may_download(user):
+    """Herunterladen: Admins immer, andere nur, wenn im Dashboard › Benutzer › „Herunterladen erlauben“ angehakt."""
+    if not user:
+        return False
+    if user[2] == 'admin':
+        return True
+    return user[0] in (jf_settings().get('download_users') or [])
+
+
+def set_download(user_id, allowed):
+    lst = [x for x in (jf_settings().get('download_users') or []) if x != user_id]
+    if allowed:
+        lst.append(user_id)
+    save_setting('download_users', lst)
+
+
+def _can_download(state):
+    return bool(getattr(state, 'dl', False))
+
+
+def user_state(user_id, user=None):
     with S.sqlite_session(S.DATA / 'library.sqlite') as c:
         prog = {r[0]: (r[1], r[2], r[3], r[4]) for r in c.execute(
             'SELECT media_id,position,duration,updated,completed FROM playback_progress WHERE user_id=?', (user_id,))}
         favs = {r[0] for r in c.execute('SELECT item_id FROM jf_favorites WHERE user_id=?', (user_id,))}
-    return prog, favs
+    st = UState((prog, favs))
+    st.dl = may_download(user) if user else False
+    return st
 
 
 def leaf_ids(cat, o):
@@ -364,8 +503,8 @@ def show_path(p):
 def dto(cat, o, state, sid, full=False):
     t = o['type']
     d = {'Name': o['name'], 'ServerId': sid, 'Id': o['jid'], 'Type': t, 'IsFolder': bool(o.get('folder')),
-         'DateCreated': iso(o.get('date') or 0), 'SortName': (o['name'] or '').lower(), 'LocationType': 'FileSystem',
-         'ChannelId': None, 'CanDelete': False, 'CanDownload': not o.get('folder'),
+         'DateCreated': iso(o.get('date') or 0), 'SortName': (o.get('sort_name') or o['name'] or '').lower(), 'LocationType': 'FileSystem',
+         'ChannelId': None, 'CanDelete': False, 'CanDownload': not o.get('folder') and _can_download(state),
          'ImageTags': {}, 'BackdropImageTags': [], 'ImageBlurHashes': {}, 'UserData': user_data(cat, o, state)}
     if o.get('parent'):
         d['ParentId'] = o['parent']
@@ -378,8 +517,12 @@ def dto(cat, o, state, sid, full=False):
             d['PrimaryImageAspectRatio'] = 16 / 9
         elif t in ('MusicAlbum', 'Audio', 'MusicArtist', 'Person'):
             d['PrimaryImageAspectRatio'] = 1.0
-    if t in ('Movie', 'Series', 'Video') and (o.get('backdrop_tag') or o.get('cover_tag')):
+    if o.get('backdrops'):
+        d['BackdropImageTags'] = [tg for _, tg in o['backdrops']]
+    elif t in ('Movie', 'Series', 'Video') and not o.get('no_backdrop') and (o.get('backdrop_tag') or o.get('cover_tag')):
         d['BackdropImageTags'] = [o.get('backdrop_tag') or o['cover_tag']]
+    for k, (_, tg) in (o.get('extra_images') or {}).items():
+        d['ImageTags'][k] = tg
     if t == 'MusicArtist':
         its = [cat['items'][i] for i in o.get('items', ()) if i in cat['items']]
         d.update(AlbumCount=sum(1 for x in its if x['type'] == 'MusicAlbum'), SongCount=sum(1 for x in its if x['type'] == 'Audio'),
@@ -468,8 +611,11 @@ def dto(cat, o, state, sid, full=False):
     if full and not o.get('folder'):
         d['MediaSources'] = [media_source(o, state)]
         d['Path'] = show_path(o['path'])
-        d['Tags'] = []; d['RemoteTrailers'] = []; d['ExternalUrls'] = []
+        d['RemoteTrailers'] = []; d['ExternalUrls'] = []
         d['MediaStreams'] = d['MediaSources'][0]['MediaStreams']
+        ch = chapters(o)
+        if ch:
+            d['Chapters'] = ch
     if full:
         pe = cat.get('people', {})
         d['People'] = [dict(x, PrimaryImageTag=pe[x['Id']]['cover_tag']) if pe.get(x['Id'], {}).get('cover_tag') else dict(x)
@@ -478,12 +624,69 @@ def dto(cat, o, state, sid, full=False):
         d['Taglines'] = [o['tagline']] if o.get('tagline') else []
         d.setdefault('People', []); d.setdefault('Studios', []); d.setdefault('Tags', []); d.setdefault('GenreItems', [])
         d.setdefault('RemoteTrailers', []); d.setdefault('ProviderIds', {}); d.setdefault('ExternalUrls', [])
-        d['LockedFields'] = []; d['LockData'] = False
+        d['Tags'] = list(o.get('tags') or [])
+        d['ProductionLocations'] = list(o.get('countries') or [])
+        if o.get('sort_name'):
+            d['ForcedSortName'] = o['sort_name']
+        d['LockedFields'] = list(o.get('locked') or []); d['LockData'] = bool(o.get('lock_data'))
     return d
 
 
 def blocked(o):
     return o['kind'] == 'video' and (not o.get('width') or not o.get('height') or o['width'] > 1920 or o['height'] > 1080)
+
+
+AUDIO_NAMES = {'ac3': 'Dolby Digital', 'eac3': 'Dolby Digital+', 'truehd': 'Dolby TrueHD', 'dts': 'DTS', 'aac': 'AAC',
+               'mp3': 'MP3', 'flac': 'FLAC', 'opus': 'Opus', 'vorbis': 'Vorbis', 'pcm_s16le': 'PCM', 'pcm_s24le': 'PCM', 'alac': 'ALAC'}
+LAYOUTS = {1: 'Mono', 2: 'Stereo', 3: '2.1', 6: '5.1', 7: '6.1', 8: '7.1'}
+
+
+def stream_dto(o, i, st):
+    """Eine Video-/Tonspur im Jellyfin-Format – mit allen Angaben, die ffprobe geliefert hat."""
+    lang = st.get('language') or 'und'
+    codec = st.get('codec') or ''
+    d = {'Type': st['type'], 'Index': i, 'Codec': codec, 'Language': lang, 'Title': st.get('title') or None,
+         'IsDefault': bool(st.get('default', True)), 'IsExternal': False, 'SupportsExternalStream': False,
+         'IsForced': bool(st.get('forced')), 'IsHearingImpaired': bool(st.get('sdh')), 'IsTextSubtitleStream': False,
+         'IsInterlaced': bool(st.get('interlaced')), 'IsAVC': codec == 'h264'}
+    if st.get('profile'):
+        d['Profile'] = st['profile']
+    if st.get('bitrate'):
+        d['BitRate'] = st['bitrate']
+    if st['type'] == 'Video':
+        w, hgt = st.get('width') or o.get('width'), st.get('height') or o.get('height')
+        rng = st.get('range') or 'SDR'
+        d.update(Width=w, Height=hgt, VideoRange='SDR' if rng == 'SDR' else 'HDR', VideoRangeType=rng)
+        for k, src in (('RealFrameRate', 'fps'), ('AverageFrameRate', 'avg_fps'), ('BitDepth', 'bit_depth'), ('Level', 'level'),
+                       ('PixelFormat', 'pix_fmt'), ('ColorTransfer', 'color_transfer'), ('ColorPrimaries', 'color_primaries'),
+                       ('ColorSpace', 'color_space'), ('AspectRatio', 'aspect')):
+            if st.get(src) not in (None, ''):
+                d[k] = st[src]
+        if rng.startswith('DOVI'):
+            d['VideoDoViTitle'] = 'Dolby Vision'
+        res = ('4K' if (w or 0) >= 3200 or (hgt or 0) >= 2000 else '%dp' % hgt if hgt else '')
+        hdr = {'SDR': '', 'HDR10': 'HDR10', 'HDR10Plus': 'HDR10+', 'HLG': 'HLG'}.get(rng, 'Dolby Vision' if rng.startswith('DOVI') else 'HDR')
+        d['DisplayTitle'] = ' '.join(x for x in (res, {'hevc': 'HEVC', 'h264': 'H.264', 'av1': 'AV1'}.get(codec, codec.upper()), hdr) if x)
+    else:
+        ch = st.get('channels') or 2
+        d.update(Channels=ch, ChannelLayout=st.get('layout') or LAYOUTS.get(ch, '%d ch' % ch))
+        if st.get('sample_rate'):
+            d['SampleRate'] = st['sample_rate']
+        name = jf_subs.lang_name(jf_subs.lang_code(lang)) if lang != 'und' else ''
+        label = AUDIO_NAMES.get(codec, codec.upper())
+        if codec == 'dts' and 'MA' in (st.get('profile') or ''):
+            label = 'DTS-HD MA'
+        d['DisplayTitle'] = ' - '.join(x for x in (st.get('title') if st.get('title') and st.get('title') != name else '',
+                                                   name, label, LAYOUTS.get(ch, '%d Kanäle' % ch),
+                                                   'Standard' if st.get('default') else '') if x) or label
+    return d
+
+
+def chapters(o):
+    """Kapitel aus der Datei (Jellyfin: Chapters mit StartPositionTicks)."""
+    ex = o.get('extra') or {}
+    return [{'StartPositionTicks': int(c['start'] * TICKS), 'Name': c.get('name') or '', 'ImageDateModified': '0001-01-01T00:00:00.0000000Z'}
+            for c in ex.get('chapters') or []]
 
 
 def media_source(o, state, token=''):
@@ -492,21 +695,9 @@ def media_source(o, state, token=''):
     known = o.get('streams')
     if known:
         for i, st in enumerate(known):
-            if st['type'] == 'Subtitle':
-                continue  # Untertitel liefert jf_subs (mit Abruf-Adresse)
-            d = {'Type': st['type'], 'Index': i, 'Codec': st.get('codec') or '', 'Language': st.get('language') or 'und',
-                 'IsDefault': bool(st.get('default', True)), 'IsExternal': False, 'SupportsExternalStream': False,
-                 'IsForced': False, 'IsTextSubtitleStream': st['type'] == 'Subtitle' and st.get('codec') in ('subrip', 'ass', 'ssa', 'mov_text')}
-            lang = (st.get('language') or 'und')
-            label = (st.get('codec') or '').upper()
-            if st['type'] == 'Video':
-                d.update(Width=o.get('width'), Height=o.get('height'))
-                d['DisplayTitle'] = ('%sp ' % o['height'] if o.get('height') else '') + label
-            else:
-                d['DisplayTitle'] = ' - '.join(x for x in (st.get('title'), lang if lang != 'und' else '', label) if x) or label
-                if st['type'] == 'Audio':
-                    d['Channels'] = 2
-            streams.append(d)
+            if st['type'] not in ('Video', 'Audio'):
+                continue  # Untertitel liefert jf_subs (mit Abruf-Adresse); Anhänge/Cover-Bilder nicht zeigen
+            streams.append(stream_dto(o, i, st))
     elif o['kind'] == 'video':
         streams.append({'Type': 'Video', 'Index': 0, 'IsDefault': True, 'Width': o.get('width'), 'Height': o.get('height'),
                         'Codec': '', 'DisplayTitle': '%sp' % (o.get('height') or ''), 'IsExternal': False, 'SupportsExternalStream': False})
@@ -529,6 +720,9 @@ def media_source(o, state, token=''):
           'VideoType': 'VideoFile' if o['kind'] == 'video' else None, 'MediaStreams': streams, 'MediaAttachments': [],
           'Formats': [], 'RequiredHttpHeaders': {}, 'DefaultAudioStreamIndex': audio_idx,
           'TranscodingSubProtocol': 'http', 'HasSegments': False}
+    br = (o.get('extra') or {}).get('bitrate')
+    if br:
+        ms['Bitrate'] = br
     rt = runtime_ticks(o, state)
     if rt:
         ms['RunTimeTicks'] = rt
@@ -551,7 +745,7 @@ def user_dto(user, sid):
             'EnableLiveTvManagement': False, 'EnableLiveTvAccess': False, 'EnableMediaPlayback': True,
             'EnableAudioPlaybackTranscoding': False, 'EnableVideoPlaybackTranscoding': False, 'EnablePlaybackRemuxing': False,
             'ForceRemoteSourceTranscoding': False, 'EnableContentDeletion': False, 'EnableContentDeletionFromFolders': [],
-            'EnableContentDownloading': True, 'EnableSyncTranscoding': False, 'EnableMediaConversion': False,
+            'EnableContentDownloading': may_download(user), 'EnableSyncTranscoding': False, 'EnableMediaConversion': False,
             'EnabledDevices': [], 'EnableAllDevices': True, 'EnabledChannels': [], 'EnableAllChannels': True,
             'EnabledFolders': [], 'EnableAllFolders': True, 'InvalidLoginAttemptCount': 0, 'LoginAttemptsBeforeLockout': -1,
             'MaxActiveSessions': 0, 'EnablePublicSharing': False, 'BlockedMediaFolders': [], 'BlockedChannels': [],
@@ -853,6 +1047,9 @@ def send_file(h, f, mime, cache='no-store'):
                 h.send_header('Content-Range', 'bytes %d-%d/%d' % (start, end, size))
             h.send_header('Cache-Control', cache)
             h.send_header('X-Content-Type-Options', 'nosniff')
+            for k, v in (getattr(h, '_extra_headers', None) or {}).items():
+                h.send_header(k, v)
+            h._extra_headers = None
             h.end_headers()
             if h.command == 'HEAD':
                 return
@@ -874,10 +1071,99 @@ def send_file(h, f, mime, cache='no-store'):
 WEB = None
 
 
+BMC_THEME_GREYS = {
+    'panel': ['#202020', '#1e1e1e', '#1c1c1c', '#222', '#242424', '#252528'],
+    'hover': ['#292929', '#303030', '#333', '#383838', '#3b3b3b'],
+    'accent': ['#00a4dc', '#44bae1', '#0cb0e8'],
+}
+
+
+def bmc_themes():
+    """Butchies-Designs aus bmcweb/themes/*.css (eigene Farbpaletten): id -> {name, vars}."""
+    out = {}
+    for f in sorted((S.ROOT / 'bmcweb' / 'themes').glob('*.css')):
+        try:
+            t = f.read_text('utf-8')
+        except OSError:
+            continue
+        m = re.search(r'\[data-bmc-theme="([\w-]+)"\]', t)
+        n = re.search(r'/\*\s*([^:*]+?)\s*:', t)
+        if not m:
+            continue
+        vars_ = dict(re.findall(r'(--bmc-[\w-]+)\s*:\s*([^;]+);', t))
+        out[m.group(1)] = {'name': (n.group(1).strip() if n else m.group(1)), 'vars': vars_}
+    return out
+
+
+def _rgb(hexc):
+    h = hexc.lstrip('#')
+    if len(h) == 3:
+        h = ''.join(c * 2 for c in h)
+    return '%d,%d,%d' % (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+def bmc_theme_css(tid):
+    """Jellyfin-Theme aus dem dunklen Standard-Theme + Butchies-Farbpalette erzeugen."""
+    th = bmc_themes().get(tid)
+    base = S.ROOT / 'jfweb' / 'themes' / 'dark' / 'theme.css'
+    if not th or not base.is_file():
+        return None
+    v = th['vars']
+    bg, panel, acc = v.get('--bmc-background', '#101010'), v.get('--bmc-panel', '#202020'), v.get('--bmc-accent', '#00a4dc')
+    css = base.read_text('utf-8')
+    css = css.replace('url(../../', 'url(../../')  # relative Bildpfade bleiben gültig (gleiche Ordnertiefe)
+    css = re.sub(r'#101010\b', bg, css)
+    for k, lst in BMC_THEME_GREYS.items():
+        rep = {'panel': panel, 'hover': 'var(--bmc-hover)', 'accent': acc}[k]
+        for c in lst:
+            css = re.sub(re.escape(c) + r'\b', rep, css)
+    css = css.replace('rgba(0,164,220,', 'rgba(%s,' % _rgb(acc))
+    css = css.replace('rgba(0,0,0,.86)', 'rgba(%s,.86)' % _rgb(bg))
+    for a in ('rgba(34,34,34,', 'rgba(32,32,32,', 'rgba(30,30,30,'):
+        css = css.replace(a, 'rgba(%s,' % _rgb(panel))
+    root = 'html:root{' + ''.join('%s:%s;' % kv for kv in v.items()) + 'color-scheme:dark}'
+    extra = (
+        'html{color:var(--bmc-text)}'
+        '.cardBox:not(.visualCardBox) .cardPadder,.cardPadder{background-color:var(--bmc-panel)}'
+        '.defaultCardBackground1{background-color:color-mix(in srgb,var(--bmc-accent) 55%,var(--bmc-panel))}'
+        '.defaultCardBackground2{background-color:color-mix(in srgb,var(--bmc-accent) 40%,var(--bmc-panel))}'
+        '.defaultCardBackground3{background-color:color-mix(in srgb,var(--bmc-accent) 70%,var(--bmc-panel))}'
+        '.defaultCardBackground4{background-color:color-mix(in srgb,var(--bmc-accent) 30%,var(--bmc-panel))}'
+        '.defaultCardBackground5{background-color:color-mix(in srgb,var(--bmc-accent) 85%,var(--bmc-panel))}'
+        '.emby-select-withcolor,.emby-input,.emby-textarea{background-color:var(--bmc-panel)!important;border-color:var(--bmc-border)!important;color:var(--bmc-text)}'
+        '.button-submit,.emby-button.button-submit{background:var(--bmc-accent);color:var(--bmc-background)}'
+        '.mainDrawer,.dialog,.actionSheet{background-color:var(--bmc-panel)}'
+        '.navMenuOption-selected,.emby-tab-button-active,.emby-tab-button.emby-button-foreground{color:var(--bmc-accent)}'
+        '.cardText-secondary,.fieldDescription,.secondaryText{color:var(--bmc-muted)}'
+        '.mdl-slider-background-lower,.itemProgressBarForeground{background-color:var(--bmc-accent)!important}'
+        '.sectionTitle{color:var(--bmc-text)}'
+    )
+    return (root + css + extra).encode('utf-8')
+
+
+def bmc_config_json():
+    """config.json der Weboberfläche + die Butchies-Designs in der Theme-Auswahl."""
+    try:
+        cfg = json.loads((S.ROOT / 'jfweb' / 'config.json').read_text('utf-8'))
+    except (OSError, ValueError):
+        return None
+    names = {t.get('id') for t in cfg.get('themes', [])}
+    for tid, th in bmc_themes().items():
+        if 'bmc-' + tid not in names:
+            cfg.setdefault('themes', []).append({'name': 'Butchies ' + th['name'], 'id': 'bmc-' + tid,
+                                                 'color': th['vars'].get('--bmc-background', '#101010')})
+    return json.dumps(cfg, ensure_ascii=False, indent=2).encode('utf-8')
+
+
 def serve_web(h, rel):
     rel = urllib.parse.unquote(rel or 'index.html')
     if rel in ('', '/'):
         rel = 'index.html'
+    if rel == 'config.json' or re.match(r'^themes/bmc-[\w-]+/theme\.css$', rel):
+        data = bmc_config_json() if rel == 'config.json' else bmc_theme_css(rel.split('/')[1][4:])
+        if data is None:
+            return h.send(404, b'{"error":"NOT_FOUND"}')
+        return h.send(200, data, ('application/json' if rel.endswith('.json') else 'text/css') + '; charset=utf-8', {'Cache-Control': 'no-cache'})
     root = (S.ROOT / 'jfweb').resolve()
     own = rel.startswith('bmc/')
     if own:
@@ -1230,7 +1516,7 @@ def route(h, method, path, p):
         if r is not None:
             return True
     cat = jf_playlists.with_playlists(catalog(), user)
-    state = user_state(user[0]) if user else ({}, set())
+    state = user_state(user[0], user) if user else ({}, set())
     if user and (p in ('/playlists', '/collections') or p.startswith(('/playlists/', '/collections/'))):
         r = jf_playlists.route(h, method, p, q, user, cat, state, sid)
         if r is not None:
@@ -1385,9 +1671,24 @@ def route(h, method, path, p):
             for x in [o] + [cat['items'][j] for j in (leaf_ids(cat, o) if o and o.get('folder') else [])]:
                 if x:
                     keys.append(x.get('mid') or x['jid'])
-            jf_meta.forget(keys)
+            eds = jf_meta.load_edits()
+            if str(q.get('replaceallimages', '')).lower() == 'true':  # „Alle Bilder ersetzen“: eigene Bildauswahl zurücksetzen
+                for k in keys:
+                    for lst in ((eds.get(k) or {}).get('images') or {}).values():
+                        for pth in lst if isinstance(lst, list) else []:
+                            if jf_images._own_copy(pth):
+                                try:
+                                    os.unlink(pth)
+                                except OSError:
+                                    pass
+                    jf_meta.drop_edit(k, ['images'])
+                invalidate()
+            jf_meta.forget([k for k in keys if not (eds.get(k) or {}).get('lock_data')])  # gesperrte Einträge bleiben
             return none(h)
-        if rest.startswith('images'):
+        if rest.startswith(('images', 'remoteimages')):
+            r = jf_images.route(h, method, cat, o, rest, q, user)
+            if r is not None:
+                return True
             return image(h, cat, o, rest)
         if not o:
             return J(h, {'error': 'NOT_FOUND'}, 404)
@@ -1458,6 +1759,16 @@ def route(h, method, path, p):
             pool = [x for x in cat['items'].values() if x['type'] == o['type'] and x['jid'] != o['jid'] and x['lib'] == o['lib']]
             import random
             random.shuffle(pool)
+            if rest == 'similar':  # ähnlich = gleiche Genres, Schauspieler, Regie, Studios, Schlagwörter, Jahrzehnt
+                g = set(o.get('genres') or []); pe = {x['Id'] for x in o.get('people') or []}
+                st_ = set(o.get('studios') or []); tg = set(o.get('tags') or [])
+                def score(x):
+                    sc = 3 * len(g & set(x.get('genres') or [])) + 2 * len(pe & {y['Id'] for y in x.get('people') or []})
+                    sc += len(st_ & set(x.get('studios') or [])) + len(tg & set(x.get('tags') or []))
+                    if o.get('year') and x.get('year') and abs(o['year'] - x['year']) <= 5:
+                        sc += 1
+                    return sc
+                pool.sort(key=score, reverse=True)
             return page(h, cat, pool, {'limit': q.get('limit') or '12'}, state, sid)
         if rest in ('localtrailers', 'specialfeatures'):
             return J(h, [])
@@ -1476,7 +1787,12 @@ def route(h, method, path, p):
         if rest in ('download', 'file'):
             if o.get('folder'):
                 return J(h, {'error': 'NOT_FOUND'}, 404)
-            return send_file(h, o['path'], mime_for(o))
+            if not may_download(user):
+                return J(h, {'error': 'FORBIDDEN'}, 403)
+            name = Path(o['path']).name
+            safe = re.sub(r'[^A-Za-z0-9._ -]', '_', name)
+            h._extra_headers = {'Content-Disposition': "attachment; filename=\"%s\"; filename*=UTF-8''%s" % (safe, urllib.parse.quote(name))}
+            return send_file(h, o['path'], 'application/octet-stream' if rest == 'download' else mime_for(o))
         return J(h, {'Items': [], 'TotalRecordCount': 0, 'StartIndex': 0})
     if p == '/playback/bitratetest':
         try:
@@ -1738,13 +2054,22 @@ def mime_for(o):
 
 
 def image(h, cat, o, rest):
-    kind = (rest.split('/') + ['', ''])[1].lower()
+    bits = rest.split('/') + ['', '', '']
+    kind = bits[1].lower()
+    idx = int(bits[2]) if bits[2].isdigit() else 0
     if o and o.get('type') == 'Person':
         src = jf_meta.person_image(o['tmdb'], o['profile']) if o.get('profile') and kind == 'primary' else None
     elif kind == 'logo':
         src = (o or {}).get('logo')
     elif kind == 'backdrop':
-        src = (o or {}).get('backdrop') or (o or {}).get('cover')
+        bd = (o or {}).get('backdrops')
+        if bd:
+            src = bd[idx][0] if idx < len(bd) else None
+        else:
+            src = None if (o or {}).get('no_backdrop') else ((o or {}).get('backdrop') or (o or {}).get('cover'))
+    elif kind in ('thumb', 'banner', 'art', 'disc'):
+        ex = ((o or {}).get('extra_images') or {}).get(kind.capitalize())
+        src = ex[0] if ex else None
     else:
         src = (o or {}).get('cover')
     if not o or not src:
@@ -1814,29 +2139,39 @@ def meta_target(cat, o):
     return ('episode' if o['type'] == 'Episode' else 'movie'), o.get('mid') or o['jid'], o
 
 
-EDIT_LIMITS = {'Name': 200, 'OriginalTitle': 200, 'Overview': 5000, 'OfficialRating': 20}
+EDIT_LIMITS = {'Name': 200, 'OriginalTitle': 200, 'Overview': 5000, 'OfficialRating': 20, 'ForcedSortName': 200}
+# Jellyfin-Sperrfelder → eigene Felder
+LOCK_MAP = {'Name': ('title',), 'OriginalTitle': ('original_title',), 'Overview': ('overview', 'tagline'),
+            'Genres': ('genres',), 'OfficialRating': ('official_rating',), 'Cast': ('people',), 'Studios': ('studios',),
+            'Tags': ('tags',), 'ProductionLocations': ('countries',), 'SortName': ('sort_name',)}
 
 
-def save_item_edit(h, cat, o, d):
-    """„Metadaten bearbeiten“ – wird separat gespeichert, die Dateien des Nutzers bleiben unverändert."""
-    if o.get('type') in ('CollectionFolder', 'Person'):
-        return J(h, {'error': 'NOT_SUPPORTED'}, 400)
+def _edit_values(d):
+    """Werte aus dem Metadaten-Editor in eigene Felder übersetzen (nur geprüfte Werte)."""
     ch = {}
     def txt(k, lim):
         v = d.get(k)
         return str(v).strip()[:lim] if v is not None else None
     if txt('Name', 200):
         ch['title'] = txt('Name', 200)
-    for src, dst in (('OriginalTitle', 'original_title'), ('Overview', 'overview'), ('OfficialRating', 'official_rating')):
+    for src, dst in (('OriginalTitle', 'original_title'), ('Overview', 'overview'), ('OfficialRating', 'official_rating'),
+                     ('ForcedSortName', 'sort_name')):
         v = txt(src, EDIT_LIMITS[src])
         if v is not None:
             ch[dst] = v
-    if isinstance(d.get('Genres'), list):
-        ch['genres'] = [str(g).strip()[:60] for g in d['Genres'] if str(g).strip()][:15]
+    if d.get('Status') in ('Continuing', 'Ended'):
+        ch['status'] = d['Status']
+    def lst(k, lim, n):
+        return [str(x).strip()[:lim] for x in d[k] if str(x).strip()][:n] if isinstance(d.get(k), list) else None
+    for src, dst, lim, n in (('Genres', 'genres', 60, 15), ('Tags', 'tags', 60, 30), ('ProductionLocations', 'countries', 60, 8)):
+        v = lst(src, lim, n)
+        if v is not None:
+            ch[dst] = v
     if isinstance(d.get('Taglines'), list):
         ch['tagline'] = str(d['Taglines'][0]).strip()[:300] if d['Taglines'] else ''
     if isinstance(d.get('Studios'), list):
-        ch['studios'] = [str(x.get('Name') if isinstance(x, dict) else x).strip()[:80] for x in d['Studios']][:8]
+        ch['studios'] = [str(x.get('Name') if isinstance(x, dict) else x).strip()[:80] for x in d['Studios']
+                         if str(x.get('Name') if isinstance(x, dict) else x).strip()][:8]
     if isinstance(d.get('People'), list):
         ch['people'] = [{'name': str(x.get('Name') or '').strip()[:120], 'role': str(x.get('Role') or '')[:120],
                          'type': str(x.get('Type') or 'Actor')[:20]} for x in d['People'] if isinstance(x, dict) and x.get('Name')][:40]
@@ -1855,11 +2190,34 @@ def save_item_edit(h, cat, o, d):
     pd = str(d.get('PremiereDate') or '')[:10]
     if re.fullmatch(r'\d{4}-\d{2}-\d{2}', pd):
         ch['premiere'] = pd
+    return ch
+
+
+def save_item_edit(h, cat, o, d):
+    """„Metadaten bearbeiten“ – wird separat gespeichert, die Dateien des Nutzers bleiben unverändert.
+    Gespeichert werden nur Felder, die wirklich geändert oder gesperrt wurden. Alles andere folgt weiter
+    den Datei-Angaben bzw. TMDb. „Gesperrt“ hält den aktuellen Wert fest, auch wenn TMDb später etwas anderes liefert."""
+    if o.get('type') in ('CollectionFolder', 'Person', 'MusicArtist', 'Playlist', 'BoxSet'):
+        return J(h, {'error': 'NOT_SUPPORTED'}, 400)
+    key = meta_target(cat, o)[1]
+    cur = _edit_values(dto(cat, o, ({}, set()), '', full=True))   # so steht es gerade da
+    new = _edit_values(d)
+    old_ed = jf_meta.load_edits().get(key) or {}
+    locked = [f for f in (d.get('LockedFields') or []) if f in LOCK_MAP] if isinstance(d.get('LockedFields'), list) else list(old_ed.get('locked') or [])
+    lock_data = bool(d.get('LockData')) if 'LockData' in d else bool(old_ed.get('lock_data'))
+    keep = {k for f in locked for k in LOCK_MAP[f]}
+    ch = {}
+    for k, v in new.items():
+        if lock_data or k in keep or k in old_ed or cur.get(k) != v:
+            ch[k] = v
+    if o['type'] == 'Season' and 'title' in ch and ch['title'] == cur.get('title') and 'title' not in old_ed:
+        ch.pop('title')
+    ch['locked'] = locked
+    ch['lock_data'] = lock_data
     pids = d.get('ProviderIds') or {}
     ids = {k.lower(): str(v).strip()[:40] for k, v in pids.items() if v and k.lower() in ('tmdb', 'imdb', 'tvdb')}
-    if ids:
+    if ids and ids != {k: v for k, v in (o.get('ids') or {}).items() if k in ('tmdb', 'imdb', 'tvdb')}:
         ch['ids'] = ids
-    key = meta_target(cat, o)[1]
     jf_meta.save_edit(key, ch)
     invalidate()
     return none(h)

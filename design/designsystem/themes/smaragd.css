@@ -1,0 +1,8 @@
+/* Smaragd: eigenständiges Butchies-Design */
+[data-bmc-theme="smaragd"] {
+  --bmc-background:#081c17;--bmc-panel:#17392d;--bmc-accent:#39bd89;
+  --bmc-text:#ecfff5;--bmc-muted:#9bcab8;--bmc-border:color-mix(in srgb,#39bd89 18%,transparent);
+  --bmc-hover:color-mix(in srgb,#39bd89 17%,#17392d);
+  --bmc-shadow:0 14px 36px rgba(0,0,0,.35);
+  --bmc-radius:14px;--bmc-gap:18px;
+}

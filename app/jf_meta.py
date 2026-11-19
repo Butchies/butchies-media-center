@@ -99,6 +99,16 @@ def parse_nfo(path):
     studios = [g.text.strip() for g in root.findall('studio') if g.text and g.text.strip()]
     if studios:
         d['studios'] = studios[:6]
+    for k, tag, n in (('tags', 'tag', 20), ('countries', 'country', 6)):
+        vals = [g.text.strip()[:60] for g in root.findall(tag) if g.text and g.text.strip()]
+        if vals:
+            d[k] = vals[:n]
+    v = _txt(root, 'sorttitle', 200)
+    if v:
+        d['sort_name'] = v
+    v = _txt(root, 'status', 30)
+    if v.lower() in ('continuing', 'ended'):
+        d['status'] = v.capitalize()
     date = _txt(root, 'premiered', 32) or _txt(root, 'aired', 32) or _txt(root, 'releasedate', 32)
     m = re.match(r'(\d{4})-(\d{2})-(\d{2})', date)
     if m:
@@ -339,7 +349,7 @@ def fetch_movie(key, name, year, ids):
         if not res:
             return None
         tid = res[0]['id']
-    d = tmdb('/movie/%s' % tid, language=lang, append_to_response='credits,images,release_dates',
+    d = tmdb('/movie/%s' % tid, language=lang, append_to_response='credits,images,release_dates,keywords',
              include_image_language='%s,en,null' % lang[:2])
     if not d:
         return None
@@ -347,7 +357,9 @@ def fetch_movie(key, name, year, ids):
            'tagline': d.get('tagline') or '', 'genres': [g['name'] for g in d.get('genres') or []],
            'studios': [c['name'] for c in (d.get('production_companies') or [])[:4]],
            'premiere': d.get('release_date') or '', 'rating': round(d['vote_average'], 1) if d.get('vote_average') else None,
-           'people': _people(d.get('credits')), 'ids': {'tmdb': str(d['id'])}}
+           'people': _people(d.get('credits')), 'ids': {'tmdb': str(d['id'])},
+           'tags': [k['name'] for k in ((d.get('keywords') or {}).get('keywords') or [])[:15] if k.get('name')],
+           'countries': [c['name'] for c in (d.get('production_countries') or [])[:4] if c.get('name')]}
     if d.get('imdb_id'):
         out['ids']['imdb'] = d['imdb_id']
     if out['premiere'][:4].isdigit():
@@ -381,7 +393,7 @@ def fetch_series(key, name, year, ids):
         if not res:
             return None
         tid = res[0]['id']
-    d = tmdb('/tv/%s' % tid, language=lang, append_to_response='credits,images,content_ratings,external_ids',
+    d = tmdb('/tv/%s' % tid, language=lang, append_to_response='credits,images,content_ratings,external_ids,keywords',
              include_image_language='%s,en,null' % lang[:2])
     if not d:
         return None
@@ -390,10 +402,15 @@ def fetch_series(key, name, year, ids):
            'studios': [c['name'] for c in (d.get('networks') or [])[:3]],
            'premiere': d.get('first_air_date') or '', 'rating': round(d['vote_average'], 1) if d.get('vote_average') else None,
            'people': _people(d.get('credits')), 'ids': {'tmdb': str(d['id'])},
-           'status': 'Continuing' if d.get('in_production') else 'Ended'}
+           'status': 'Continuing' if d.get('in_production') else 'Ended',
+           'tags': [k['name'] for k in ((d.get('keywords') or {}).get('results') or [])[:15] if k.get('name')],
+           'countries': [c['name'] for c in (d.get('production_countries') or [])[:4] if c.get('name')]}
+
     ext = d.get('external_ids') or {}
     if ext.get('imdb_id'):
         out['ids']['imdb'] = ext['imdb_id']
+    if ext.get('tvdb_id'):
+        out['ids']['tvdb'] = str(ext['tvdb_id'])
     if out['premiere'][:4].isdigit():
         out['year'] = int(out['premiere'][:4])
     if not out['overview'] and lang[:2] != 'en':
@@ -468,6 +485,20 @@ def save_edit(key, changes):
     old.update(changes)
     with S.sqlite_session(S.DATA / 'library.sqlite') as c:
         c.execute('INSERT OR REPLACE INTO jf_edits(key,data,updated) VALUES(?,?,?)', (key, json.dumps(old, ensure_ascii=False), time.time()))
+
+
+def drop_edit(key, fields):
+    """Eigene Änderungen für bestimmte Felder verwerfen (z. B. „Alle Bilder ersetzen“)."""
+    old = load_edits().get(key)
+    if not old:
+        return
+    for f in fields:
+        old.pop(f, None)
+    with S.sqlite_session(S.DATA / 'library.sqlite') as c:
+        if old:
+            c.execute('INSERT OR REPLACE INTO jf_edits(key,data,updated) VALUES(?,?,?)', (key, json.dumps(old, ensure_ascii=False), time.time()))
+        else:
+            c.execute('DELETE FROM jf_edits WHERE key=?', (key,))
 
 
 def search(kind, name, year, ids):
@@ -595,6 +626,8 @@ def _run_once():
         _state['done'] += 1
         sig = local_sig(o, kind)
         old = known.get(key)
+        if old and (edits.get(key) or {}).get('lock_data'):
+            continue  # „Daten sperren“: nichts mehr automatisch ändern
         need_online = online and kind != 'episode' and (
             not old or old[1] in (None, 'off') or (old[1] == 'none' and now - (old[2] or 0) > RETRY_NONE) or
             (old[1] == 'error' and now - (old[2] or 0) > RETRY_ERR))
@@ -679,33 +712,50 @@ def person_id(name):
     return '90' + hashlib.md5(('person\x1f' + name.lower()).encode()).hexdigest()[:30]
 
 
+EDIT_TEXT = ('overview', 'tagline', 'official_rating', 'premiere', 'status', 'original_title', 'sort_name')
+EDIT_LIST = ('genres', 'studios', 'tags', 'countries')
+NOT_FIELDS = ('ids', 'images', 'locked', 'lock_data')
+
+
 def apply(items):
-    """Metadaten in die Katalog-Objekte übernehmen. Gibt die Personen-Liste zurück."""
+    """Metadaten in die Katalog-Objekte übernehmen. Gibt die Personen-Liste zurück.
+    Reihenfolge: Datei-Angaben (NFO/Bilder) > TMDb, eigene Änderungen (jf_edits) gewinnen immer."""
+    import jf_images
     meta = load_all()
-    for k, e in load_edits().items():  # eigene Änderungen gewinnen
-        if any(x != 'ids' for x in e):
-            m = dict(meta.get(k) or {})
-            m.update({x: v for x, v in e.items() if x != 'ids'})
-            m['_edited'] = True
-            meta[k] = m
+    edits = load_edits()
+    for k, e in edits.items():
+        if k not in meta:
+            meta[k] = {}
     people = {}
     for o in items.values():
         t = o.get('type')
-        key = o['mid'] if t in ('Movie', 'Video', 'Episode') else o['jid'] if t in ('Series', 'Season') else None
+        key = o['mid'] if t in ('Movie', 'Video', 'Episode') else o['jid'] if t in ('Series', 'Season', 'MusicAlbum') else None
         m = meta.get(key) if key else None
-        if not m:
+        if m is None:
             continue
-        custom = o.get('custom') and not m.get('_edited')
-        if m.get('_edited'):
-            for k in ('overview', 'genres', 'rating', 'year'):
-                if k in m:
-                    o[k] = m[k]
-        if m.get('title') and not custom and t in ('Movie', 'Video', 'Series', 'Episode'):
-            o['name'] = m['title']
+        ed = edits.get(key) or {}
+        edited = any(x not in NOT_FIELDS for x in ed)
+        m = dict(m, **{x: v for x, v in ed.items() if x not in NOT_FIELDS})
+        custom = o.get('custom') and 'title' not in ed
+        for k in ('overview', 'genres', 'rating', 'year'):
+            if k in ed:
+                o[k] = ed[k]
+        if ed.get('locked') or ed.get('lock_data'):
+            o['locked'] = list(ed.get('locked') or []); o['lock_data'] = bool(ed.get('lock_data'))
+        if edited:
+            o['edited'] = True
+        if m.get('title') and not custom and t in ('Movie', 'Video', 'Series', 'Episode', 'Season', 'MusicAlbum'):
+            if t not in ('Season', 'MusicAlbum') or 'title' in ed:
+                o['name'] = m['title']
         if m.get('original_title') and m.get('original_title') != o.get('name'):
             o['original_title'] = m['original_title']
-        for k in ('overview', 'tagline', 'official_rating', 'premiere', 'status'):
-            if m.get(k) and not (k == 'overview' and o.get('overview')):
+        for k in EDIT_TEXT:
+            if k == 'original_title':
+                continue
+            if m.get(k) and not (k == 'overview' and o.get('overview') and 'overview' not in ed):
+                o[k] = m[k]
+        for k in ('tags', 'countries'):
+            if m.get(k):
                 o[k] = m[k]
         if m.get('genres') and (not o.get('genres') or set(o['genres']) <= set(m['genres'])):
             o['genres'] = m['genres']
@@ -743,4 +793,6 @@ def apply(items):
                     pe['tmdb'], pe['profile'] = p['tmdb'], p['profile']
                     pe['cover_tag'] = hashlib.md5(p['profile'].encode()).hexdigest()[:12]
             o['people'] = lst
+        if isinstance(ed.get('images'), dict):
+            jf_images.apply_edit(o, ed['images'])
     return people

@@ -35,6 +35,7 @@ Selbst bauen auf einem Linux-Rechner: `sh build.sh` → Ergebnis in `dist/`.
 | `jf_admin.py` | Dashboard-Verwaltung: Benutzer, Bibliotheken, Ordnerauswahl, Scan-Aufgabe |
 | `jf_meta.py` | Metadaten: Plakate, Hintergründe, Logos, Beschreibung, Schauspieler (lokale NFO-Dateien, optional TMDb mit eigenem Schlüssel), Identifizieren |
 | `jf_subs.py` | Untertitel: Dateien neben dem Film (.srt/.ass/.vtt) und eingebettete Spuren |
+| `jf_images.py` | Bildverwaltung: Bilder hochladen, löschen, Reihenfolge ändern, anderes Bild von TMDb wählen (eigene Bilder in `data/meta/user/`, Dateien im Medienordner bleiben unverändert) |
 | `jf_playlists.py` | Wiedergabelisten und Sammlungen |
 | `jf_ws.py` | Live-Verbindung (WebSocket), damit „Gesehen“/Favoriten auf allen Geräten sofort stimmen |
 | `auth.py` | Benutzerkonten und Passwörter (verschlüsselt mit scrypt) |
@@ -48,11 +49,13 @@ Selbst bauen auf einem Linux-Rechner: `sh build.sh` → Ergebnis in `dist/`.
 | `bmcweb/bmc-detail.css`, `bmcweb/bmc-detail.js` | Detailseite von Filmen/Serien im gewohnten Aufbau (Poster links, Infos rechts, ganzseitiger Hintergrund) |
 | `bmcweb/bmc-cardsize.css`, `bmcweb/bmc-cardsize.js` | Einstellung „Bildgröße“ (Einstellungen → Anzeige): Kachelgröße pro Gerät |
 | `bmcweb/bmc-artwork.css`, `bmcweb/bmc-artwork.js` | Startseite: Kachelform passend zum Bildformat (hochkant, breit, quadratisch, 4:3, Banner) |
+| `bmcweb/themes/*.css` | 6 Butchies-Designs (Einstellungen → Anzeige → Design): Aurora, Kinosaal Rot, Mitternachtsblau, OLED Schwarz, Smaragd, Sonnenuntergang |
 | `bmcweb/bmc-core.js` | Kleine technische Hilfen in der Jellyfin-Oberfläche (Untertitel-Darstellung, Hinweise bei x265) |
 | `bmcweb/bmc-player.css`, `bmcweb/bmc-player.js` | Aussehen des Players (Aufbau wie gewohnt: Logo, Titelzeilen, Reiter Info/Kapitel/Besetzung/Als Nächstes) |
 | `bmcweb/player/` | Butchies-Web-Player für Browser, die einen Film nicht selbst können (nur mit Plugin „Browser-Hilfe“) |
 | `bmcweb/tmdb-config.html`, `bmcweb/switch-config.html` | Einstellungsseiten der Plugins „TMDb-Metadaten“ und „Browser-Hilfe“ |
 | `remote/enable-remote.sh`, `remote/disable-remote.sh` | Zugang von unterwegs über Port 8920 ein- bzw. ausschalten |
+| `../design/` | Vorlagen-Pakete (Designsystem, Film-Detailseite) als Nachschlagewerk, nicht in der App |
 | `../preview/index.html` | Designvorschau mit Beispieldaten (nicht in der App) |
 | `cacert.pem` | Liste vertrauenswürdiger Zertifikate (für TMDb, falls dem NAS-Python welche fehlen) |
 

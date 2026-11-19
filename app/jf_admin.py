@@ -196,6 +196,7 @@ def route(h, method, path, p, q, user, sid):
                 acc.delete_user(target[0])
             except ValueError as e:
                 return err(h, str(e))
+            A.set_download(target[0], False)  # Nummer kann neu vergeben werden – Erlaubnis nicht vererben
             return A.none(h)
         if len(lp) == 2 and method == 'POST':  # Umbenennen
             d = A.body_json(h)
@@ -212,6 +213,8 @@ def route(h, method, path, p, q, user, sid):
             if not admin:
                 return snd(h, 403, b'', 'text/plain', {})
             d = A.body_json(h)
+            if 'EnableContentDownloading' in d:
+                A.set_download(target[0], bool(d.get('EnableContentDownloading')))
             want = 'admin' if d.get('IsAdministrator') else 'user'
             if want != target[2]:
                 with S().sqlite_session(acc.db) as c:

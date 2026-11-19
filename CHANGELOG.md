@@ -2,6 +2,15 @@
 
 Neueste zuerst.
 
+## 19.11.2026 – Butchies Media Center 3.10.0: Medieninformationen komplett
+- **Bilder bearbeiten** (⋮ → „Bilder bearbeiten“): Plakat, Hintergründe (mehrere, Reihenfolge mit ‹ ›), Logo, Vorschaubild, Banner hochladen, löschen oder über 🔍 ein anderes Bild von TMDb wählen. Bilder neben deinen Filmen werden dabei nie gelöscht oder verändert – „Löschen“ blendet sie nur aus. „Metadaten aktualisieren“ mit „Alle Bilder ersetzen“ stellt den Ursprung wieder her.
+- **Feldsperren** (Metadaten bearbeiten → „Aktivierte Felder“ bzw. „Dieses Objekt sperren“): gesperrte Felder bleiben, wie sie sind, auch wenn TMDb später etwas anderes liefert. Gespeichert werden nur noch Felder, die du wirklich geändert oder gesperrt hast – alles andere aktualisiert sich weiter automatisch.
+- **Herunterladen** (⋮ → „Herunterladen“): Admins immer, andere Benutzer nur mit Haken „Herunterladen von Inhalten erlauben“ (Dashboard → Benutzer → Benutzer anklicken).
+- **Technikdaten** über das mitgelieferte ffprobe: HDR10/HDR10+/HLG/Dolby Vision, Bildrate, Bit-Tiefe, Kanäle (5.1/7.1), Tonformat (Dolby Digital, DTS-HD MA, TrueHD …), Sprache, erzwungene und Hörgeschädigten-Untertitel, Gesamt-Bitrate und **Kapitel** aus der Datei (im Player unter „Kapitel“). Alle Dateien werden nach dem Update einmal im Hintergrund neu eingelesen.
+- Metadaten: Schlagwörter, Produktionsländer, Sortiertitel und Serienstatus (aus NFO, TMDb oder selbst eingetragen); TheTVDB-ID bei Serien.
+- „Ähnlich wie dieses“ zeigt jetzt wirklich Ähnliches (gleiche Genres, Schauspieler, Studios, Schlagwörter, Jahrzehnt) statt Zufall.
+- 6 **Butchies-Designs** unter Einstellungen → Anzeige → Design: Aurora, Kinosaal Rot, Mitternachtsblau, OLED Schwarz, Smaragd, Sonnenuntergang.
+
 ## 19.11.2026 – Butchies Media Center 3.9.8: Detailseite im gewohnten Aufbau
 - Film-/Serien-Detailseite wie gewohnt (eigene Umsetzung nach Bildvorlage): Hintergrundbild über die ganze Seite, Poster links, rechts Logo bzw. Titel, Infozeile „★ 6,1 · Jahr · 1h, 38 Min. · [FSK] · Genres · Endet um“, Video/Audio/Untertitel in einer Zeile, Knöpfe als Pillen („Abspielen“, „Trailer“, „Zufällig“) und Kreise (Gesehen, Herz, ⋮), Beschreibung mit „Mehr“, „Regisseur: …“, darunter „Besetzung & Mitwirkende“ und „Ähnlich wie dieses“ über die volle Breite. Handy: untereinander.
 
