@@ -8,6 +8,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+# Mehrere Änderungen kurz hintereinander: Bau-Läufe nacheinander, nicht gleichzeitig
+concurrency:
+  group: wd-app-bauen
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -25,7 +29,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ steps.b.outputs.ver }}-$(date -u +%Y%m%d-%H%M)"
+          # eindeutiger Name je Lauf (vorher gleiche Minute → gleicher Name → Fehler)
+          TAG="v${{ steps.b.outputs.ver }}-$(date -u +%Y%m%d-%H%M)-${{ github.run_number }}"
           git log -1 --pretty=%B > notes.txt
           gh release create "$TAG" "${{ steps.b.outputs.file }}" "${{ steps.b.outputs.file }}.sha256" \
             --title "Butchies Media Center ${{ steps.b.outputs.ver }}" --notes-file notes.txt
