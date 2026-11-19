@@ -907,7 +907,9 @@ def serve_web(h, rel):
             v = '%x' % int(max(x.stat().st_mtime for x in (S.ROOT / 'bmcweb').iterdir()))
         except (OSError, ValueError):
             v = '0'
-        inj = '<script defer src="bmc/bmc-core.js?v=%s"></script>' % v
+        inj = ('<link rel="stylesheet" href="bmc/bmc-emby-cards.css?v=%s">'
+               '<script defer src="bmc/bmc-emby-cards.js?v=%s"></script>'
+               '<script defer src="bmc/bmc-core.js?v=%s"></script>') % (v, v, v)
         if player_look():  # Butchies-Player nur, wenn unter Dashboard → Plugins eingeschaltet
             inj += '<link rel="stylesheet" href="bmc/bmc-player.css?v=%s"><script defer src="bmc/bmc-player.js?v=%s"></script>' % (v, v)
         inj = (inj + '</head>').encode()
