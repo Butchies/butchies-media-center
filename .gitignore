@@ -1,0 +1,7 @@
+dist/
+__pycache__/
+*.pyc
+app/jfweb/
+app/bin/
+app/bmcweb/player/core/
+app/apkg.sign

@@ -1,0 +1,67 @@
+<div id="bmcTmdbPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-select">
+  <div data-role="content">
+    <div class="content-primary">
+      <form id="bmcTmdbForm">
+        <div class="verticalSection">
+          <h2 class="sectionTitle">TMDb-Metadaten</h2>
+          <p>Lädt Filmplakate, Hintergrundbilder, Logos, Beschreibungen, Genres, Altersfreigaben und Schauspieler von
+             <b>themoviedb.org</b>. Eigene <code>.nfo</code>-Dateien und Bilder neben den Filmen haben immer Vorrang.
+             Deine Dateien werden nicht verändert – alles Heruntergeladene liegt im Datenordner des Media Centers.</p>
+          <p>So bekommst du einen kostenlosen Schlüssel: auf themoviedb.org ein Konto anlegen → Einstellungen → API →
+             „API-Schlüssel“ (oder „API-Lesezugriffstoken“) kopieren und hier einfügen.</p>
+        </div>
+        <div class="inputContainer">
+          <input is="emby-input" type="text" id="bmcTmdbKey" label="API-Schlüssel oder Lesezugriffstoken" autocomplete="off" />
+          <div class="fieldDescription">Leer lassen = keine Daten aus dem Internet.</div>
+        </div>
+        <div class="selectContainer">
+          <select is="emby-select" id="bmcTmdbLang" label="Sprache">
+            <option value="de-DE">Deutsch</option><option value="en-US">Englisch</option>
+            <option value="fr-FR">Französisch</option><option value="es-ES">Spanisch</option>
+            <option value="it-IT">Italienisch</option><option value="tr-TR">Türkisch</option>
+          </select>
+        </div>
+        <div class="checkboxContainer">
+          <label><input is="emby-checkbox" type="checkbox" id="bmcTmdbOn" /><span>Daten aus dem Internet laden</span></label>
+        </div>
+        <div class="verticalSection" id="bmcTmdbStatus" style="opacity:.8"></div>
+        <button is="emby-button" type="submit" class="raised button-submit block"><span>Speichern</span></button>
+        <button is="emby-button" type="button" id="bmcTmdbAgain" class="raised block"><span>Alle Filme und Serien neu abgleichen</span></button>
+      </form>
+    </div>
+  </div>
+  <script type="text/javascript">
+  (function () {
+    var ID = 'a8f1c3e5b7d94f2e9c0b1a2d3e4f5a6b';
+    var page = document.querySelector('#bmcTmdbPage');
+    function $(s) { return page.querySelector(s); }
+    function msg(t) { if (window.Dashboard && Dashboard.alert) Dashboard.alert(t); else alert(t); }
+    function load() {
+      ApiClient.getPluginConfiguration(ID).then(function (c) {
+        $('#bmcTmdbKey').value = c.ApiKey || '';
+        $('#bmcTmdbLang').value = c.Language || 'de-DE';
+        $('#bmcTmdbOn').checked = c.Enabled !== false;
+        var st = c.Status || {}, t = '';
+        if (st.running) t = 'Läuft gerade: ' + st.done + ' von ' + st.total + ' geprüft.';
+        else if (st.last_run) t = 'Zuletzt geprüft: ' + new Date(st.last_run * 1000).toLocaleString();
+        if (st.last_error) t += '<br>Letzter Hinweis: ' + String(st.last_error).replace(/</g, '&lt;');
+        $('#bmcTmdbStatus').innerHTML = t;
+      });
+    }
+    page.addEventListener('pageshow', load);
+    $('#bmcTmdbForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      ApiClient.updatePluginConfiguration(ID, { ApiKey: $('#bmcTmdbKey').value.trim(), Language: $('#bmcTmdbLang').value,
+        Enabled: $('#bmcTmdbOn').checked, Country: $('#bmcTmdbLang').value.slice(3) })
+        .then(function () { msg('Gespeichert. Die Daten werden jetzt im Hintergrund geladen – das kann je nach Menge eine Weile dauern.'); load(); },
+              function () { msg('Speichern fehlgeschlagen – bitte den Schlüssel prüfen.'); });
+      return false;
+    });
+    $('#bmcTmdbAgain').addEventListener('click', function () {
+      ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('Plugins/' + ID + '/Refresh') })
+        .then(function () { msg('Neuer Abgleich gestartet.'); load(); });
+    });
+    if (page.classList.contains('page') && document.contains(page)) load();
+  })();
+  </script>
+</div>

@@ -1,0 +1,104 @@
+/* Butchies-Player-Aussehen (Standard) – eigene Umsetzung, lädt nach jellyfin-web. */
+
+/* ---- oben: Logo direkt neben dem Zurück-Pfeil */
+#bmcLogo{position:fixed;top:max(.95em,env(safe-area-inset-top));left:4.2em;z-index:1001;height:2.75em;display:flex;align-items:center;
+  max-width:min(40vw,420px);pointer-events:none;transition:opacity .3s ease;opacity:1}
+#bmcLogo.bmc-hide{opacity:0}
+#bmcLogo img{display:block;max-height:100%;max-width:100%;object-fit:contain;filter:drop-shadow(0 1px 6px rgba(0,0,0,.6))}
+#bmcLogo .bmcLogoText{font-size:1.4em;font-weight:600;line-height:1.2;font-variant:small-caps;letter-spacing:.04em;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,.7)}
+body.bmc-osd .skinHeader .pageTitle{visibility:hidden}
+/* rechts oben: Lautstärke, Cast, Bild-in-Bild (Lautstärke + Bild-in-Bild bleiben im Player, nur nach oben gesetzt) */
+body.bmc-osd .skinHeader.osdHeader .headerRight{padding-right:3.4em}
+body.bmc-osd #videoOsdPage .volumeButtons{position:fixed;top:max(.95em,env(safe-area-inset-top));right:7.2em;height:2.75em;
+  display:flex;align-items:center;flex-direction:row-reverse;pointer-events:auto;z-index:2}
+body.bmc-osd #videoOsdPage .volumeButtons .osdVolumeSliderContainer{width:9em;margin:0 .5em 0 0}
+body.bmc-osd #videoOsdPage .btnPip{position:fixed;top:max(.95em,env(safe-area-inset-top));right:.6em;height:2.75em;pointer-events:auto;z-index:2}
+
+/* ---- unten: Aufbau wie gewohnt (Seitenabstand, weiße Leiste, Reiter) */
+body.bmc-osd #videoOsdPage .videoOsdBottom{padding-top:9em;background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,0) 100%)}
+body.bmc-osd #videoOsdPage .osdControls{width:100%;max-width:none;padding:0 2.9vw;box-sizing:border-box}
+#videoOsdPage .osdMainTextContainer,#videoOsdPage .osdSecondaryMediaInfo,#videoOsdPage .osdTimeText,.bmcGone{display:none!important}
+#bmcBar{display:flex;align-items:flex-end;gap:1em;margin:0 0 .35em}
+#bmcMeta{flex:1;min-width:0;color:#fff}
+#bmcMeta .bmcLine1{font-size:1.05em;font-weight:600;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.2em}
+#bmcMeta .bmcLine2{font-size:clamp(1.5em,1.65vw,2em);font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bmcRight{display:flex;align-items:center;flex-shrink:0;gap:.55em;margin-bottom:-.2em}
+#bmcRight .paper-icon-button-light{margin:0;padding:.3em}
+#bmcRight .material-icons{font-size:1.85em}
+#bmcRight .hide{display:none!important}
+
+/* Zeitleiste: weiß, über die ganze Breite; darunter links Zeit, rechts „-Rest / Ende“ */
+#videoOsdPage .osdControls>.flex.align-items-center{flex-wrap:wrap}
+#videoOsdPage .osdControls>.flex.align-items-center>.sliderContainer{order:0;flex:1 1 100%!important;margin:.25em 0 .35em!important}
+#videoOsdPage .osdControls>.flex.align-items-center>.osdPositionText{order:1;margin:0!important;font-size:1em}
+#videoOsdPage .osdControls>.flex.align-items-center>.osdDurationText{display:none!important}
+#bmcRemain{order:2;margin-left:auto;font-size:1em;white-space:pre}
+body.bmc-osd #videoOsdPage .mdl-slider-background-lower,body.bmc-osd .osdVolumeSliderContainer .mdl-slider-background-lower{background:#fff!important}
+body.bmc-osd #videoOsdPage .mdl-slider-background-upper{background:rgba(255,255,255,.28)!important}
+body.bmc-osd #videoOsdPage .mdl-slider::-webkit-slider-thumb{background:#fff!important;border:0!important}
+body.bmc-osd #videoOsdPage .mdl-slider::-moz-range-thumb{background:#fff!important;border:0!important}
+body.bmc-osd #videoOsdPage .mdl-slider-background-flex{height:.22em;margin-top:-.11em}
+
+/* unterste Reihe: nur die Abspiel-Knöpfe, links */
+#videoOsdPage .osdControls .buttons{justify-content:flex-start;margin-left:-.5em;margin-top:.1em}
+#videoOsdPage .osdControls .buttons>div>.paper-icon-button-light{margin:0 .35em}
+#videoOsdPage .osdControls .buttons .material-icons{font-size:2.1em}
+
+/* Reiter + Inhalt */
+#bmcTabs{display:flex;gap:2.2em;margin:.6em 0 0}
+#bmcTabs button{background:none;border:0;color:#fff;font:inherit;font-size:1.05em;font-weight:700;padding:.3em 0;cursor:pointer;
+  border-bottom:2px solid transparent;opacity:.95}
+#bmcTabs button:hover,#bmcTabs button.on{border-bottom-color:#fff;opacity:1}
+#bmcPanel{display:flex;gap:1em;overflow-x:auto;overflow-y:hidden;padding:.9em 0 .3em;margin-top:.2em;scrollbar-width:thin}
+#bmcPanel[hidden]{display:none}
+#bmcPanel.p-info{display:block}
+.bmcInfo{max-width:70em}
+.bmcFacts{font-weight:600;opacity:.8;margin-bottom:.5em}
+.bmcOverview{line-height:1.5;max-height:7.5em;overflow:auto}
+.bmcCard{flex:0 0 auto;width:9em;background:none;border:0;color:#fff;font:inherit;text-align:left;padding:0;cursor:pointer}
+.bmcCard.wide{width:15em}
+.bmcCard[disabled]{cursor:default}
+.bmcCardImg{width:100%;aspect-ratio:2/3;background:#222 center/cover no-repeat;border-radius:.25em}
+.bmcCard.wide .bmcCardImg{aspect-ratio:16/9}
+.bmcCardImg.empty{background:#2a2a2a}
+.bmcCardT{font-size:.95em;font-weight:600;margin-top:.4em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bmcCardS{font-size:.85em;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bmcCard:not([disabled]):hover .bmcCardImg{outline:2px solid #fff}
+
+/* Menü Wiedergabegeschwindigkeit */
+#bmcMenu{position:fixed;z-index:2000;background:#202020;border-radius:.3em;padding:.35em 0;box-shadow:0 .3em 1.2em rgba(0,0,0,.6);min-width:9em}
+#bmcMenu button{display:block;width:100%;background:none;border:0;color:#fff;font:inherit;text-align:left;padding:.65em 1.2em;cursor:pointer}
+#bmcMenu button:hover{background:rgba(255,255,255,.1)}
+#bmcMenu button.on{font-weight:700}
+#bmcMenu button.on::before{content:'✓ '}
+
+/* Handy */
+@media (max-width:600px){
+  #bmcLogo{left:3.6em;height:2.2em;max-width:55vw}
+  body.bmc-osd #videoOsdPage .osdControls{padding:0 4vw}
+  #bmcMeta .bmcLine2{font-size:1.3em}
+  #bmcMeta .bmcLine1{font-size:.9em}
+  #bmcRight{gap:0}
+  #bmcRight .material-icons{font-size:1.6em}
+  #bmcBar{gap:.3em}
+  #bmcTabs{gap:1.2em;overflow-x:auto;white-space:nowrap}
+  #bmcTabs button{font-size:.95em}
+  .bmcCard.wide{width:11em}
+}
+
+/* Detailseite: Knöpfe mit Beschriftung („Fortsetzen“ / „Von Anfang an“ / „Abspielen“) */
+.detailButton.btnPlay:not(.hide),.detailButton.btnReplay:not(.hide){display:inline-flex;align-items:center;gap:.35em;
+  padding:.45em 1em .45em .7em!important;border-radius:999px;background:rgba(255,255,255,.12)}
+.detailButton.btnPlay:not(.hide)::after,.detailButton.btnReplay:not(.hide)::after{content:attr(title);font-size:.95rem;font-weight:600;white-space:nowrap}
+.detailButton.btnPlay:not(.hide){background:#00a4dc;color:#fff}
+.detailButton.btnPlay .detailButton-content,.detailButton.btnReplay .detailButton-content{display:inline-flex}
+@media (max-width:600px){.detailButton.btnPlay:not(.hide)::after,.detailButton.btnReplay:not(.hide)::after{font-size:.85rem}}
+.detailButton.btnReplay:not(.hide)::after{content:'Von Anfang an'}
+.detailButton.btnPlay:not(.hide) .detailButton-content,.detailButton.btnReplay:not(.hide) .detailButton-content{flex-direction:row;gap:.3em}
+/* Untertitel: gut lesbar und über der Steuerleiste, solange diese sichtbar ist */
+.videoSubtitles{transition:transform .25s ease}
+.videoSubtitlesInner{color:#fff!important;background:transparent!important;font-weight:600;
+  text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000,-1px -1px 2px #000,2px 2px 6px rgba(0,0,0,.8)!important}
+body:has(.videoOsdBottom:not(.videoOsdBottom-hidden)) .videoSubtitles{transform:translateY(-150px)}
+@media (max-width:600px){body:has(.videoOsdBottom:not(.videoOsdBottom-hidden)) .videoSubtitles{transform:translateY(-170px)}}

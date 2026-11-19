@@ -1,0 +1,19 @@
+Package: butchiesmediacenter
+Version: 3.9.6
+Packager: Butchies
+Email:
+Homepage: https://github.com/Butchies/butchies-media-center
+Description: Butchies Media Center - Filme, Serien und Musik im Heimnetz (Jellyfin-Oberfläche, max. 1080p)
+Icon: butchiesmediacenter.png
+AddonShowName: Butchies Media Center
+AddonIndexPage: index.html
+AddonUsedPort: 8097
+InstDepend:
+InstConflict:
+StartDepend:
+StartConflict:
+CenterType:
+UserControl: 1
+MinFWVer:
+MaxFWVer:
+IndividualFlag: 0

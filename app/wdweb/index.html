@@ -1,0 +1,39 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Butchies Media Center</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="config.js"></script>
+<style>
+body{font-family:sans-serif;background:#101828;color:#fff;margin:0;padding:2em;text-align:center}
+a{color:#7cc4ff;font-size:1.3em}
+#diag{text-align:left;max-width:1000px;margin:2em auto 0}
+pre{background:#0b1220;border:1px solid #2a3550;padding:1em;overflow:auto;max-height:60vh;font-size:12px;white-space:pre-wrap}
+.err{color:#ff8a8a;font-weight:bold}.ok{color:#8ee28e}
+button{background:#2a3550;color:#fff;border:0;padding:.5em 1em;border-radius:4px;cursor:pointer}
+</style></head><body><h1>Butchies Media Center</h1>
+<p><a id="go" href="#">Media Center öffnen</a></p>
+<p><small>Beim ersten Öffnen zeigt der Browser eine Zertifikatswarnung (selbst ausgestelltes Zertifikat deines NAS): „Erweitert“ → „Weiter zu …“.</small></p>
+<div id="diag"><h3>Status und Diagnose <button id="reload">Aktualisieren</button></h3>
+<p id="summary"></p><pre id="log">wird geladen …</pre>
+<small>Bei Problemen diesen Text kopieren und an den Entwickler schicken. Er enthält keine Passwörter.</small></div>
+<script>
+var c=window.BMC||{scheme:"https",port:8097};
+var url=c.scheme+"://"+location.hostname+":"+c.port+"/";
+var a=document.getElementById("go");a.href=url;a.target="_blank";a.rel="noopener";a.textContent="Media Center öffnen ("+url+")";
+function load(){
+ var x=new XMLHttpRequest();x.open("GET","status.txt?"+Date.now());
+ x.onload=function(){
+  var t=x.status==200?x.responseText:"";var pre=document.getElementById("log");pre.textContent="";
+  var lines=t.trim()?t.trim().split("\n"):["(noch keine Einträge – wurde die App gestartet?)"];
+  lines.slice(-150).forEach(function(l){var s=document.createElement("span");s.textContent=l+"\n";
+   if(/FEHLER|WARNUNG/.test(l))s.className="err";else if(/OK:/.test(l))s.className="ok";pre.appendChild(s)});
+  pre.scrollTop=pre.scrollHeight;
+  var lastStart=t.lastIndexOf("Start angefordert"),tail=lastStart>=0?t.slice(lastStart):t;
+  var sum=document.getElementById("summary");
+  if(/OK: Server laeuft/.test(tail)&&!/FEHLER/.test(tail)){sum.className="ok";sum.textContent="Server wurde erfolgreich gestartet."}
+  else if(/FEHLER/.test(tail)){sum.className="err";sum.textContent="Beim letzten Start ist ein Fehler aufgetreten (rot markiert)."}
+  else if(lastStart<0){sum.className="err";sum.textContent="Es wurde noch kein Start protokolliert. Ist die App im Dashboard eingeschaltet?"}
+  else{sum.textContent=""}
+ };
+ x.onerror=function(){document.getElementById("log").textContent="Status nicht lesbar."};x.send();
+}
+document.getElementById("reload").onclick=load;load();
+</script></body></html>
