@@ -1,0 +1,119 @@
+/* Butchies Media Center: Detailseite im gewohnten Aufbau (eigene Umsetzung, siehe bmc-detail.js). */
+
+/* ---- Hintergrund über die ganze Seite, abgedunkelt */
+.itemDetailPage.bmc-detail{background:transparent!important}
+/* Am PC nutzt Jellyfin den allgemeinen Hintergrund (backdropContainer), am Handy #itemBackdrop */
+.itemDetailPage.bmc-detail #itemBackdrop:not([style*="url("]){display:none!important}
+body.bmc-detail-on .backgroundContainer{background:linear-gradient(90deg,rgba(8,12,20,.82) 0%,rgba(8,12,20,.55) 45%,rgba(8,12,20,.32) 100%),
+  linear-gradient(0deg,rgba(8,12,20,.88) 0%,rgba(8,12,20,0) 55%)!important}
+.itemDetailPage.bmc-detail #itemBackdrop{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;
+  z-index:0;background-size:cover!important;background-position:center top!important;margin:0!important}
+.itemDetailPage.bmc-detail #itemBackdrop::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(8,12,20,.88) 0%,rgba(8,12,20,.62) 45%,rgba(8,12,20,.45) 100%),
+             linear-gradient(0deg,rgba(8,12,20,.85) 0%,rgba(8,12,20,0) 55%)}
+.itemDetailPage.bmc-detail .detailPageWrapperContainer{position:relative;z-index:1;background:transparent!important;
+  padding:clamp(5em,9vh,6.5em) 3.9vw 2em!important;margin:0!important}
+.itemDetailPage.bmc-detail .detailRibbon,.itemDetailPage.bmc-detail .detailPagePrimaryContainer,
+.itemDetailPage.bmc-detail .detailPageSecondaryContainer{background:transparent!important}
+.itemDetailPage.bmc-detail .detailRibbon{display:none!important}
+
+/* ---- Kopf: Poster links, Infos rechts */
+.itemDetailPage.bmc-detail .bmcHead{display:grid;grid-template-columns:clamp(200px,17.2vw,340px) minmax(0,1fr);gap:clamp(1.5em,1.9vw,2.4em);align-items:start}
+.itemDetailPage.bmc-detail .bmcPoster .detailImageContainer{position:static!important;display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
+.itemDetailPage.bmc-detail .bmcPoster .card{position:static!important;width:100%!important;margin:0!important;padding:0!important}
+.itemDetailPage.bmc-detail .bmcPoster .cardBox{margin:0!important}
+.itemDetailPage.bmc-detail .bmcPoster .cardScalable,.itemDetailPage.bmc-detail .bmcPoster .cardImageContainer{border-radius:.25em;box-shadow:0 .4em 1.6em rgba(0,0,0,.55)}
+.itemDetailPage.bmc-detail .bmcInfo{min-width:0;display:flex;flex-direction:column;align-items:flex-start;color:#fff}
+
+/* Logo bzw. Titel */
+.itemDetailPage.bmc-detail .bmcInfo .detailLogo{position:static!important;display:block;width:min(100%,24em)!important;height:clamp(4.5em,9vh,6em)!important;
+  margin:.2em 0 .7em!important;background-position:left center!important;background-size:contain!important;background-repeat:no-repeat!important;transform:none!important;left:auto!important;top:auto!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailLogo.hide{display:none!important}
+.itemDetailPage.bmc-detail .bmcHead.bmc-haslogo .nameContainer{display:none!important}
+.itemDetailPage.bmc-detail .bmcInfo .nameContainer{margin:0 0 .4em!important;text-align:left!important}
+.itemDetailPage.bmc-detail .bmcInfo .itemName.parentNameLast{font-size:clamp(1.8em,2.6vw,2.6em)!important;font-weight:700;margin:0}
+.itemDetailPage.bmc-detail .bmcInfo .originalTitle{display:none!important}
+
+/* Infozeile: ★ 6,1  2021  1h, 38 Min.  [FSK-16]  Action, Thriller  Endet um 23:55 */
+.itemDetailPage.bmc-detail .bmcInfo .itemMiscInfo{display:flex!important;flex-wrap:wrap;align-items:center;gap:.25em 1em;margin:0 0 .8em!important;font-size:1.05em;justify-content:flex-start!important}
+.itemDetailPage.bmc-detail .bmcInfo .itemMiscInfo .mediaInfoItem{margin:0!important;color:#fff}
+.itemDetailPage.bmc-detail .bmcInfo .itemMiscInfo .starRatingContainer{order:-1;display:inline-flex;align-items:center;gap:.15em}
+.itemDetailPage.bmc-detail .bmcInfo .itemMiscInfo .starIcon{color:#e5383b!important;font-size:1.2em}
+.itemDetailPage.bmc-detail .bmcInfo .mediaInfoOfficialRating{border:1px solid rgba(255,255,255,.85)!important;border-radius:2px;padding:0 .3em!important;line-height:1.35;font-size:.92em}
+.itemDetailPage.bmc-detail .bmcInfo .bmcGenres{order:8}
+.itemDetailPage.bmc-detail .bmcInfo .endsAt{order:9}
+
+/* Spurauswahl in einer Zeile: Video 1080p HEVC   Audio [ … ⌄ ]   Untertitel [ … ⌄ ] */
+.itemDetailPage.bmc-detail .bmcInfo .trackSelections{display:flex!important;flex-wrap:wrap;align-items:center;gap:.6em 1.6em;max-width:none!important;width:auto!important;margin:0 0 1em!important}
+.itemDetailPage.bmc-detail .bmcInfo .trackSelectionFieldContainer{display:flex!important;align-items:center;gap:.6em;margin:0!important;width:auto!important;position:relative}
+.itemDetailPage.bmc-detail .bmcInfo .trackSelectionFieldContainer.hide{display:none!important}
+.itemDetailPage.bmc-detail .bmcInfo .trackSelectionFieldContainer .selectLabel{width:auto!important;margin:0!important;font-size:1.05em;color:#fff;flex:0 0 auto}
+.itemDetailPage.bmc-detail .bmcInfo .detailTrackSelect{width:auto!important;min-width:4em;max-width:22em;font-size:1.05em;color:#fff!important;
+  background:rgba(70,110,170,.45)!important;border:0!important;border-radius:.35em!important;padding:.35em 2.2em .35em .7em!important;line-height:1.3;cursor:pointer}
+.itemDetailPage.bmc-detail .bmcInfo .detailTrackSelect:disabled{background:transparent!important;padding-left:0!important;padding-right:0!important;opacity:1!important;cursor:default;-webkit-appearance:none;appearance:none}
+.itemDetailPage.bmc-detail .bmcInfo .detailTrackSelect:disabled ~ .selectArrowContainer{display:none}
+.itemDetailPage.bmc-detail .bmcInfo .trackSelectionFieldContainer .selectArrowContainer{position:absolute;right:.4em;top:50%;transform:translateY(-50%);pointer-events:none}
+
+/* Knöpfe: „Abspielen“/„Trailer“ als Pillen, der Rest als Kreise */
+.itemDetailPage.bmc-detail .bmcInfo .mainDetailButtons{display:flex!important;flex-wrap:wrap;gap:.55em;margin:0 0 1.2em!important;justify-content:flex-start!important;position:static!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton{display:inline-flex!important;align-items:center;justify-content:center;margin:0!important;
+  height:2.75em;min-width:2.75em;padding:0 .7em!important;border-radius:999px!important;background:rgba(255,255,255,.16)!important;color:#fff!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.hide{display:none!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton:hover{background:rgba(255,255,255,.28)!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton .detailButton-content{display:inline-flex!important;flex-direction:row!important;align-items:center;gap:.45em}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton .detailButton-icon{font-size:1.45em!important;margin:0!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton .detailButton-text{display:none!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnPlay,.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnReplay,
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnPlayTrailer,.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnShuffle,
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnInstantMix{padding:0 1.25em 0 1em!important;gap:.45em;flex-direction:row!important;background:rgba(255,255,255,.16)!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnPlay::after,.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnReplay::after,
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnPlayTrailer::after,.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnShuffle::after,
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnInstantMix::after{content:attr(title);font-size:1.05rem;font-weight:600;white-space:nowrap;margin-left:.45em}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnPlayTrailer::after{content:'Trailer'}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnReplay::after{content:'Von Anfang an'}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton .favorite,.itemDetailPage.bmc-detail .bmcInfo .detailButton.ratingbutton-withrating .detailButton-icon{color:#fff}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnUserRating[data-isfavorite="true"] .detailButton-icon{color:#e5383b!important}
+.itemDetailPage.bmc-detail .bmcInfo .detailButton.btnPlaystate[data-played="true"] .detailButton-icon{color:#52b54b!important}
+
+/* Beschreibung, „Mehr“, Regisseur */
+.itemDetailPage.bmc-detail .bmcInfo .detailSectionContent{max-width:58em;margin:0!important;padding:0!important}
+.itemDetailPage.bmc-detail .bmcInfo .tagline{display:none!important}
+.itemDetailPage.bmc-detail .bmcInfo .overview{font-size:1.2em;line-height:1.5;margin:0 0 .2em!important;color:#fff}
+.itemDetailPage.bmc-detail .bmcInfo .overview p{margin:0}
+.itemDetailPage.bmc-detail .bmcInfo .overview-controls{display:flex;justify-content:flex-end}
+.itemDetailPage.bmc-detail .bmcInfo .overview-controls .button-flat,.itemDetailPage.bmc-detail .bmcInfo .overview-controls button{color:rgba(255,255,255,.75)!important;font-weight:700;font-size:1.05em}
+.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup{margin:.4em 0 0!important;max-width:58em}
+.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup .detailsGroupItem{display:none!important}
+.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup .directorsGroup:not(.hide),.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup .writersGroup:not(.hide){display:flex!important;gap:.3em;align-items:baseline;margin:0 0 .2em!important;font-size:1em}
+.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup .label{width:auto!important;color:rgba(255,255,255,.6);margin:0!important;flex:0 0 auto}
+.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup .label::after{content:':'}
+.itemDetailPage.bmc-detail .bmcInfo .itemDetailsGroup .content a{color:rgba(255,255,255,.85)!important;font-weight:700}
+
+/* ---- Reihen darunter über die volle Breite */
+.itemDetailPage.bmc-detail .detailPagePrimaryContent{padding:0!important;margin-top:clamp(1.5em,4vh,3em)!important}
+.itemDetailPage.bmc-detail .detailPagePrimaryContent .detailSection{margin:0!important;padding:0!important}
+.itemDetailPage.bmc-detail .detailPageSecondaryContainer{margin-top:clamp(1.5em,4vh,3em)!important;padding-bottom:3em}
+.itemDetailPage.bmc-detail .detailPageContent{padding:0!important;margin:0!important}
+.itemDetailPage.bmc-detail .detailVerticalSection{padding:0!important;margin:0 0 1.6em!important}
+.itemDetailPage.bmc-detail .detailVerticalSection .sectionTitle{font-size:1.55em;font-weight:700;color:#fff;padding-left:0!important;margin:0 0 .5em!important}
+.itemDetailPage.bmc-detail .detailVerticalSection .padded-right,.itemDetailPage.bmc-detail .detailVerticalSection .padded-left{padding-left:0!important}
+.itemDetailPage.bmc-detail .detailVerticalSection .emby-scroller{margin:0!important;padding-left:0!important}
+.itemDetailPage.bmc-detail .personCard.overflowPortraitCard{width:clamp(110px,7.7vw,160px)!important}
+.itemDetailPage.bmc-detail .personCard .cardText{text-align:center}
+.itemDetailPage.bmc-detail .personCard .cardText-first{color:#fff;font-size:1em}
+.itemDetailPage.bmc-detail .personCard .cardText-secondary{color:rgba(255,255,255,.6)}
+
+/* ---- Handy: untereinander, Poster ausgeblendet (wie bisher) */
+@media (max-width:50em){
+  .itemDetailPage.bmc-detail .detailPageWrapperContainer{padding:5em 4vw 2em!important}
+  .itemDetailPage.bmc-detail .bmcHead{grid-template-columns:minmax(0,1fr)}
+  .itemDetailPage.bmc-detail .bmcPoster{display:none}
+  .itemDetailPage.bmc-detail .bmcInfo .detailLogo{height:4.5em!important;width:100%!important;margin-top:28vh!important}
+  .itemDetailPage.bmc-detail .bmcHead:not(.bmc-haslogo) .nameContainer{margin-top:30vh!important}
+  .itemDetailPage.bmc-detail .bmcInfo .detailTrackSelect{max-width:62vw}
+  .itemDetailPage.bmc-detail .bmcInfo .overview{font-size:1.05em}
+  .itemDetailPage.bmc-detail .personCard.overflowPortraitCard{width:28vw!important}
+}
+
+/* Kopfleiste durchsichtig über dem Hintergrundbild */
+body.bmc-detail-on .skinHeader:not(.osdHeader){background:linear-gradient(rgba(8,12,20,.55),rgba(8,12,20,0))!important;box-shadow:none!important;backdrop-filter:none!important}

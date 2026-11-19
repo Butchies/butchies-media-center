@@ -911,6 +911,8 @@ def serve_web(h, rel):
                '<script defer src="bmc/bmc-artwork.js?v=%s"></script>'
                '<script defer src="bmc/bmc-cardsize.js?v=%s"></script>'
                '<script defer src="bmc/bmc-core.js?v=%s"></script>') % (v, v, v, v, v)
+        if player_look():  # Detailseite im gewohnten Aufbau gehört zum Butchies-Aussehen
+            inj += '<link rel="stylesheet" href="bmc/bmc-detail.css?v=%s"><script defer src="bmc/bmc-detail.js?v=%s"></script>' % (v, v)
         if player_look():  # Butchies-Player nur, wenn unter Dashboard → Plugins eingeschaltet
             inj += '<link rel="stylesheet" href="bmc/bmc-player.css?v=%s"><script defer src="bmc/bmc-player.js?v=%s"></script>' % (v, v)
         inj = (inj + '</head>').encode()

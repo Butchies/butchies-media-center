@@ -45,6 +45,7 @@ Selbst bauen auf einem Linux-Rechner: `sh build.sh` → Ergebnis in `dist/`.
 | `apkg.rc`, `apkg.xml` | Beschreibung der WD-App (Name, Version, Startreihenfolge) |
 | `install.sh`, `preinst.sh`, `init.sh`, `start.sh`, `stop.sh`, `remove.sh`, `clean.sh`, `wd_env.sh`, `install_app.sh` | Schritte, die das WD-Dashboard beim Installieren, Starten, Stoppen und Entfernen ausführt |
 | `wdweb/` | Kachel und Seite der App im WD-Dashboard |
+| `bmcweb/bmc-detail.css`, `bmcweb/bmc-detail.js` | Detailseite von Filmen/Serien im gewohnten Aufbau (Poster links, Infos rechts, ganzseitiger Hintergrund) |
 | `bmcweb/bmc-cardsize.css`, `bmcweb/bmc-cardsize.js` | Einstellung „Bildgröße“ (Einstellungen → Anzeige): Kachelgröße pro Gerät |
 | `bmcweb/bmc-artwork.css`, `bmcweb/bmc-artwork.js` | Startseite: Kachelform passend zum Bildformat (hochkant, breit, quadratisch, 4:3, Banner) |
 | `bmcweb/bmc-core.js` | Kleine technische Hilfen in der Jellyfin-Oberfläche (Untertitel-Darstellung, Hinweise bei x265) |

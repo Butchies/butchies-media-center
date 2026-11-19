@@ -2,6 +2,9 @@
 
 Neueste zuerst.
 
+## 19.11.2026 – Butchies Media Center 3.9.8: Detailseite im gewohnten Aufbau
+- Film-/Serien-Detailseite wie gewohnt (eigene Umsetzung nach Bildvorlage): Hintergrundbild über die ganze Seite, Poster links, rechts Logo bzw. Titel, Infozeile „★ 6,1 · Jahr · 1h, 38 Min. · [FSK] · Genres · Endet um“, Video/Audio/Untertitel in einer Zeile, Knöpfe als Pillen („Abspielen“, „Trailer“, „Zufällig“) und Kreise (Gesehen, Herz, ⋮), Beschreibung mit „Mehr“, „Regisseur: …“, darunter „Besetzung & Mitwirkende“ und „Ähnlich wie dieses“ über die volle Breite. Handy: untereinander.
+
 ## 19.11.2026 – Butchies Media Center 3.9.7: Bildgröße
 - Neue Einstellung **Bildgröße** unter Einstellungen → Anzeige (unter „Anzeigemodus“): Extra klein, Kleiner, Klein, Standard, Groß, Größer, Extra groß. Wird sofort und nur für dieses Gerät gespeichert. Ein Wechsel des Anzeigemodus setzt sie auf Standard zurück.
 - Berechnung: Kachelbreite = Fläche / max(Grundzahl + Anpassung, Mindestanzahl); Mindestanzahl Poster 3, Quadrat 2, Querformat/Banner 1. „Standard“ entspricht genau der bisherigen Größe.
