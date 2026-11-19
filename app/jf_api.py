@@ -371,8 +371,7 @@ def dto(cat, o, state, sid, full=False):
         d['ParentId'] = o['parent']
     if o.get('cover_tag'):
         d['ImageTags']['Primary'] = o['cover_tag']
-        # Emby imagehelper.js: primary aspect ratio steers portrait/backdrop/square cards.
-        # Jellyfin uses the same PrimaryImageAspectRatio metadata field.
+        # Card artwork proportions supplied to the web interface.
         if t in ('Movie', 'Series', 'Season', 'BoxSet'):
             d['PrimaryImageAspectRatio'] = 2 / 3
         elif t in ('Episode', 'Video', 'Program', 'TvChannel'):
@@ -907,8 +906,8 @@ def serve_web(h, rel):
             v = '%x' % int(max(x.stat().st_mtime for x in (S.ROOT / 'bmcweb').iterdir()))
         except (OSError, ValueError):
             v = '0'
-        inj = ('<link rel="stylesheet" href="bmc/bmc-emby-cards.css?v=%s">'
-               '<script defer src="bmc/bmc-emby-cards.js?v=%s"></script>'
+        inj = ('<link rel="stylesheet" href="bmc/bmc-artwork.css?v=%s">'
+               '<script defer src="bmc/bmc-artwork.js?v=%s"></script>'
                '<script defer src="bmc/bmc-core.js?v=%s"></script>') % (v, v, v)
         if player_look():  # Butchies-Player nur, wenn unter Dashboard → Plugins eingeschaltet
             inj += '<link rel="stylesheet" href="bmc/bmc-player.css?v=%s"><script defer src="bmc/bmc-player.js?v=%s"></script>' % (v, v)
