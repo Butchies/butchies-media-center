@@ -1,0 +1,19 @@
+# Einmalig: halbfertige Zwischenversionen vom 19.11.2026 entfernen (Release + Tag).
+name: Aufraeumen
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/aufraeumen.yml']
+permissions:
+  contents: write
+jobs:
+  weg:
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for t in v3.9.6-20261119-0907 v3.9.6-20261119-0909 v3.9.6-20261119-0911; do
+            gh release delete "$t" --repo "${{ github.repository }}" --yes --cleanup-tag || true
+          done
+          gh release list --repo "${{ github.repository }}"
