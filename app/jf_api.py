@@ -371,6 +371,14 @@ def dto(cat, o, state, sid, full=False):
         d['ParentId'] = o['parent']
     if o.get('cover_tag'):
         d['ImageTags']['Primary'] = o['cover_tag']
+        # Emby imagehelper.js: primary aspect ratio steers portrait/backdrop/square cards.
+        # Jellyfin uses the same PrimaryImageAspectRatio metadata field.
+        if t in ('Movie', 'Series', 'Season', 'BoxSet'):
+            d['PrimaryImageAspectRatio'] = 2 / 3
+        elif t in ('Episode', 'Video', 'Program', 'TvChannel'):
+            d['PrimaryImageAspectRatio'] = 16 / 9
+        elif t in ('MusicAlbum', 'Audio', 'MusicArtist', 'Person'):
+            d['PrimaryImageAspectRatio'] = 1.0
     if t in ('Movie', 'Series', 'Video') and (o.get('backdrop_tag') or o.get('cover_tag')):
         d['BackdropImageTags'] = [o.get('backdrop_tag') or o['cover_tag']]
     if t == 'MusicArtist':
